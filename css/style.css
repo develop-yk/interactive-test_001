@@ -8,8 +8,8 @@
   --accent2:#ff6ba9;
   --ok:#54e0a0;
   --r:16px;
-  --cam-opacity:.85;      /* 映像の明るさ */
-  --scrim:.22;            /* UI を読みやすくするための暗幕 */
+  --cam-opacity:.55;      /* 映像の明るさ（標準） */
+  --scrim:.42;            /* UI を読みやすくするための暗幕 */
 }
 *{box-sizing:border-box}
 html,body{height:100%}
