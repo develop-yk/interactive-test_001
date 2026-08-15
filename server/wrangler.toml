@@ -1,0 +1,7 @@
+name = "gesture-ui-lab-proxy"
+main = "worker.js"
+compatibility_date = "2025-01-01"
+
+# シークレットは wrangler secret put で登録する（このファイルに書かないこと）
+#   wrangler secret put ANTHROPIC_API_KEY
+#   wrangler secret put ALLOWED_ORIGIN     例: https://develop-yk.github.io

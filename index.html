@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gesture UI Lab — MediaPipe × Claude</title>
+<link rel="stylesheet" href="./css/style.css">
+</head>
+<body>
+
+<!-- ===== 起動オーバーレイ（カメラ許可はユーザー操作起点で） ===== -->
+<div id="gate" class="gate">
+  <div class="gate-card">
+    <p class="gate-kicker">MediaPipe Tasks Vision × Claude</p>
+    <h1>Gesture UI Lab</h1>
+    <p class="gate-lead">
+      Web カメラの映像から <b>手のランドマーク（21点 × 2手）</b> と
+      <b>顔の表情（52 ブレンドシェイプ）</b> をブラウザ内でリアルタイム推論し、
+      カメラスルーの画に重ねた UI を手で直接操作します。<br>
+      <span class="muted">映像はすべて端末内で処理され、サーバーに送信されません。</span>
+    </p>
+    <ul class="gate-list">
+      <li><span class="k">☝️ 人差し指</span>カーソル移動</li>
+      <li><span class="k">🤏 ピンチ</span>クリック / ドラッグ</li>
+      <li><span class="k">✊ グー</span>パネルを掴んで移動</li>
+      <li><span class="k">✋ パー</span>リセット</li>
+      <li><span class="k">🙂 笑顔</span>「いいね」を送る</li>
+      <li><span class="k">↔️ 首の向き</span>背景のパララックス</li>
+    </ul>
+    <button id="startBtn" class="btn-primary">カメラを起動して開始</button>
+    <p id="gateStatus" class="gate-status">クリックするとカメラの利用許可を求めます</p>
+  </div>
+</div>
+
+<!-- ===== 装飾背景（カメラが暗いときの下地／首の向きで視差） ===== -->
+<div class="bg" aria-hidden="true">
+  <div class="bg-layer bg-grid" data-depth="1.0"></div>
+  <div class="bg-glow" data-depth="1.8"></div>
+</div>
+
+<!-- ===== レイヤー1: カメラスルー（全画面・鏡像・cover） ===== -->
+<video id="video" class="cam" playsinline muted autoplay></video>
+<div class="cam-scrim" aria-hidden="true"></div>
+
+<!-- ===== メイン UI（レイヤー2） ===== -->
+<main id="stage" class="stage" hidden>
+
+  <header class="topbar">
+    <div class="brand">Gesture&nbsp;UI&nbsp;Lab</div>
+    <div class="hud">
+      <span class="chip" id="hudGestureL">左手 —</span>
+      <span class="chip" id="hudGestureR">右手 —</span>
+      <span class="chip" id="hudFace">顔 —</span>
+      <span class="chip mono" id="hudFps">-- fps</span>
+      <button class="chip btn-chip" id="vizBtn" data-clickable data-action="viz"
+              title="V キーでも切替">可視化: シンプル</button>
+      <button class="chip btn-chip" id="camBtn" data-clickable data-action="cam"
+              title="C キーでも切替">映像: 標準</button>
+    </div>
+  </header>
+
+  <section class="board" id="board">
+
+    <!-- 左カラム -->
+    <div class="col">
+      <div class="panel panel-cards" data-grabbable>
+        <h2 class="panel-title">① ピンチで選択</h2>
+        <div class="cards" id="cards"></div>
+        <p class="panel-note" id="cardNote">カードにカーソルを重ねて 🤏 でピンチ</p>
+      </div>
+
+      <div class="panel panel-face" data-grabbable>
+        <h2 class="panel-title">③ 表情で反応する</h2>
+        <div class="bs" id="blendshapes"></div>
+        <div class="reaction" id="reaction"><span>🙂 笑顔で「いいね」</span></div>
+      </div>
+    </div>
+
+    <!-- 中央：自分が映るスペース -->
+    <div class="center" aria-hidden="true">
+      <div class="reticle"><i></i><i></i><i></i><i></i></div>
+      <div class="center-status" id="centerStatus">カメラの前で手をかざしてください</div>
+    </div>
+
+    <!-- 右カラム -->
+    <div class="col">
+      <div class="panel panel-controls" data-grabbable>
+        <h2 class="panel-title">② ピンチしたまま動かす</h2>
+
+        <div class="ctl">
+          <span class="ctl-label">Intensity</span>
+          <div class="slider" id="slider" data-value="0.5">
+            <div class="slider-fill"></div>
+            <div class="slider-knob"></div>
+          </div>
+          <output class="ctl-val mono" id="sliderVal">0.50</output>
+        </div>
+
+        <div class="ctl">
+          <span class="ctl-label">Wireframe</span>
+          <div class="toggle" id="toggle" role="switch" aria-checked="false"><i></i></div>
+          <span></span>
+        </div>
+
+        <div class="ctl">
+          <span class="ctl-label">Zoom（両手間隔）</span>
+          <div class="gauge"><div class="gauge-fill" id="zoomFill"></div></div>
+          <output class="ctl-val mono" id="zoomVal">1.00×</output>
+        </div>
+      </div>
+
+      <div class="panel panel-ai" data-grabbable>
+        <h2 class="panel-title">④ Claude コメンタリー</h2>
+        <div class="ai-mode" id="aiMode">ローカル応答モード（API 未接続）</div>
+        <div class="ai-log" id="aiLog"></div>
+        <button class="btn-ghost" id="aiAskBtn" data-clickable>いま何してた？と聞く</button>
+      </div>
+    </div>
+
+  </section>
+
+  <div class="toast" id="toast"></div>
+</main>
+
+<!-- ===== レイヤー3: ランドマーク AR オーバーレイ（UI より前面） ===== -->
+<canvas id="overlay" class="overlay"></canvas>
+
+<!-- ===== レイヤー4: ジェスチャーカーソル ===== -->
+<div class="cursor" id="cursorR"><i></i><svg viewBox="0 0 44 44"><circle class="ring" cx="22" cy="22" r="19"/></svg></div>
+<div class="cursor cursor-alt" id="cursorL"><i></i><svg viewBox="0 0 44 44"><circle class="ring" cx="22" cy="22" r="19"/></svg></div>
+
+<script type="module" src="./js/main.js"></script>
+</body>
+</html>
