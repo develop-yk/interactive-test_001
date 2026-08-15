@@ -4,7 +4,7 @@
  */
 import { Tracker } from './tracker.js';
 import { Viz } from './viz.js';
-import { HandState, FaceState, twoHandSpread, GESTURE_JP } from './gestures.js';
+import { HandState, FaceState, twoHandSpread, GESTURE_LABEL } from './gestures.js';
 import { UI } from './ui.js';
 import { AIBridge } from './ai-bridge.js';
 import { TUNING } from './config.js';
@@ -51,11 +51,11 @@ startBtn.addEventListener('click', async () => {
 
   try {
     if (!window.isSecureContext) {
-      throw new Error('HTTPS または localhost でないとカメラを使えません（file:// では動きません）');
+      throw new Error('Camera access requires HTTPS or localhost (file:// will not work)');
     }
     tracker = new Tracker($('#video'));
 
-    setStatus('カメラの許可を待っています…');
+    setStatus('Waiting for camera permission\u2026');
     await tracker.startCamera();
 
     await tracker.load(setStatus);
@@ -73,9 +73,9 @@ startBtn.addEventListener('click', async () => {
     console.error(e);
     startBtn.disabled = false;
     const msg = e?.name === 'NotAllowedError'
-      ? 'カメラの利用が拒否されました。ブラウザのアドレスバーのカメラアイコンから許可してください。'
+      ? 'Camera access was denied. Allow it from the camera icon in the address bar.'
       : e?.name === 'NotFoundError'
-        ? '利用できるカメラが見つかりませんでした。'
+        ? 'No camera device was found.'
         : (e?.message ?? String(e));
     setStatus(msg, true);
   }
@@ -119,13 +119,13 @@ function onResults(handRes, faceRes) {
   paintCursor(curL, left);
 
   // --- HUD ---
-  hudL.textContent = `左手 ${GESTURE_JP[left.gesture]}`;
-  hudR.textContent = `右手 ${GESTURE_JP[right.gesture]}`;
+  hudL.textContent = `Left ${GESTURE_LABEL[left.gesture]}`;
+  hudR.textContent = `Right ${GESTURE_LABEL[right.gesture]}`;
   hudL.classList.toggle('hot', left.present);
   hudR.classList.toggle('hot', right.present);
   hudFace.textContent = face.present
-    ? `顔 ${face.smiling ? '笑顔' : face.mouthOpen ? '口を開く' : '検出中'} / yaw ${(face.yaw * 57.3).toFixed(0)}°`
-    : '顔 —';
+    ? `Face ${face.smiling ? 'smiling' : face.mouthOpen ? 'mouth open' : 'tracked'} / yaw ${(face.yaw * 57.3).toFixed(0)}\u00b0`
+    : 'Face \u2014';
   hudFace.classList.toggle('hot', face.present);
   hudFps.textContent = `${tracker.fps} fps`;
 
@@ -133,8 +133,8 @@ function onResults(handRes, faceRes) {
   const live = nHands > 0 || face.present;
   centerStatus.classList.toggle('live', live);
   centerStatus.textContent = live
-    ? `検出中: 手 ${nHands} / 顔 ${face.present ? 1 : 0} — ランドマーク ${nHands * 21 + (face.present ? 478 : 0)} 点`
-    : 'カメラの前で手をかざしてください';
+    ? `Tracking ${nHands} hand${nHands === 1 ? '' : 's'} / ${face.present ? 1 : 0} face \u2014 ${nHands * 21 + (face.present ? 478 : 0)} landmarks`
+    : 'Hold your hand up to the camera';
 }
 
 function paintCursor(el, h) {

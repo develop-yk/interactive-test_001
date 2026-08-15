@@ -20,7 +20,7 @@ export const DELEGATE = 'GPU';
  * 空文字 = ローカル応答モード（API キー不要でそのまま動く）。
  *
  * Step 2 に進むときは server/ 配下のプロキシをデプロイし、その URL をここに書きます。
- *   例: 'https://gesture-ui-lab.<your-subdomain>.workers.dev/api/comment'
+ *   例: 'https://gesture-ui-demo-proxy.<your-subdomain>.workers.dev/api/comment'
  *
  * ⚠️ ブラウザから api.anthropic.com を直接叩かないこと。
  *    API キーがフロントに出てしまい、CORS でも弾かれます。必ずプロキシ経由で。

@@ -14,13 +14,14 @@ const KEY    = process.env.ANTHROPIC_API_KEY;
 const MODEL  = process.env.CLAUDE_MODEL || 'claude-haiku-4-5-20251001';
 
 if (!KEY) {
-  console.error('環境変数 ANTHROPIC_API_KEY が設定されていません');
+  console.error('Environment variable ANTHROPIC_API_KEY is not set');
   process.exit(1);
 }
 
-const SYSTEM = `あなたは「Gesture UI Lab」というWebデモの実況ナビゲーターです。
-ユーザーはWebカメラの前で手のジェスチャーと表情だけでUIを操作しています。
-日本語で2文以内、80文字程度。実況と次に試す操作の提案を混ぜ、毎回違う言い回しにしてください。`;
+const SYSTEM = `You are the live commentator for a web demo called "Gesture UI Demo".
+The user operates the interface with hand gestures and facial expression in front of a webcam.
+Reply in English, 2 sentences maximum, around 30 words. Mix a short play-by-play with a
+suggestion of what to try next, and vary your phrasing every time. No emoji.`;
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -41,9 +42,9 @@ http.createServer(async (req, res) => {
 
   const { events = [], ui = {}, history = [] } = body;
   const userMsg =
-    `【UI状態】${JSON.stringify(ui)}\n` +
-    `【直近の操作】${events.length ? events.map(e => e.type + (e.target ? `:${e.target}` : '')).join(', ') : '（まだ操作なし）'}\n` +
-    `これを踏まえて一言お願いします。`;
+    `[UI state] ${JSON.stringify(ui)}\n` +
+    `[Recent actions] ${events.length ? events.map(e => e.type + (e.target ? `:${e.target}` : '')).join(', ') : '(nothing yet)'}\n` +
+    `Give me one short remark based on this.`;
 
   try {
     const r = await fetch('https://api.anthropic.com/v1/messages', {

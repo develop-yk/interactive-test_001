@@ -15,12 +15,12 @@ const CARD_DATA = [
 ];
 
 const BS_ROWS = [
-  ['mouthSmileLeft',  '口角(左)'],
-  ['mouthSmileRight', '口角(右)'],
-  ['browInnerUp',     '眉を上げる'],
-  ['jawOpen',         '口を開く'],
-  ['eyeBlinkLeft',    'まばたき(左)'],
-  ['eyeBlinkRight',   'まばたき(右)'],
+  ['mouthSmileLeft',  'Smile L'],
+  ['mouthSmileRight', 'Smile R'],
+  ['browInnerUp',     'Brow up'],
+  ['jawOpen',         'Jaw open'],
+  ['eyeBlinkLeft',    'Blink L'],
+  ['eyeBlinkRight',   'Blink R'],
 ];
 
 export class UI {
@@ -114,7 +114,7 @@ export class UI {
   /** パー（開いた手）でカードの選択を解除 */
   handleReset() {
     this.cardsEl.querySelectorAll('.card').forEach(c => c.classList.remove('active'));
-    if (this.selected) { this.selected = null; this.cardNote.textContent = 'リセットしました'; }
+    if (this.selected) { this.selected = null; this.cardNote.textContent = 'Selection cleared'; }
   }
 
   _elementAt(x, y, selector) {
@@ -169,8 +169,8 @@ export class UI {
     el.classList.add('active', 'pop');
     setTimeout(() => el.classList.remove('pop'), 400);
     this.selected = el.dataset.name;
-    this.cardNote.textContent = `選択中: ${this.selected}`;
-    this.toast(`${this.selected} を選択`);
+    this.cardNote.textContent = `Selected: ${this.selected}`;
+    this.toast(`${this.selected} selected`);
     this.onEvent({ type: 'select', target: this.selected });
   }
 
@@ -198,7 +198,7 @@ export class UI {
     this.reaction.classList.toggle('fire', !!face.smiling);
     if (face.justSmiled) {
       this.likes++;
-      this.reaction.innerHTML = `<span>いいね ×${this.likes}</span>`;
+      this.reaction.innerHTML = `<span>Likes &times;${this.likes}</span>`;
       this.burst();
       this.onEvent({ type: 'smile', count: this.likes });
     }

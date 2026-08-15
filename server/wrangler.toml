@@ -1,4 +1,4 @@
-name = "gesture-ui-lab-proxy"
+name = "gesture-ui-demo-proxy"
 main = "worker.js"
 compatibility_date = "2025-01-01"
 

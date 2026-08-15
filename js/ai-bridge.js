@@ -18,19 +18,19 @@ import { AI_ENDPOINT, AI_MIN_INTERVAL } from './config.js';
 
 const LOCAL_LINES = {
   select: [
-    n => `「${n}」を選びましたね。指先だけで選択できるのが手トラッキングの気持ちいいところです。`,
-    n => `${n} を開きました。次はピンチしたまま横に動かして Intensity を触ってみてください。`,
+    n => `You picked ${n}. Selecting with nothing but a fingertip is the fun part of hand tracking.`,
+    n => `${n} is open. Try pinching and sliding sideways to move the Intensity slider next.`,
   ],
   toggle: [
-    v => v ? 'Wireframe を ON にしました。表示のモードが切り替わります。' : 'Wireframe を OFF に戻しました。',
+    v => v ? 'Wireframe is now ON. The display mode has switched.' : 'Wireframe is back OFF.',
   ],
   smile: [
-    c => `笑顔を検出しました（通算 ${c} 回）。表情は 52 個のブレンドシェイプ値として毎フレーム取れています。`,
+    c => `Smile detected (${c} so far). Expression comes through as 52 blendshape values every frame.`,
   ],
   idle: [
-    () => '手をカメラに映すとカーソルが出ます。人差し指で狙って、親指とくっつけるとクリックです。',
-    () => '両手を映して間隔を変えると Zoom ゲージが動きます。',
-    () => '顔を左右に振ると背景が視差で動きます。首の向きは 4x4 の変換行列から取り出しています。',
+    () => 'Show a hand to the camera and a cursor appears. Aim with your index finger, touch your thumb to click.',
+    () => 'Show both hands and change the distance between them to drive the Zoom gauge.',
+    () => 'Turn your head and the background shifts. Head pose comes from a 4x4 transformation matrix.',
   ],
 };
 
@@ -47,10 +47,10 @@ export class AIBridge {
     this._busy   = false;
 
     if (this.live) {
-      this.modeEl.textContent = 'Claude API 接続モード';
+      this.modeEl.textContent = 'Claude API connected';
       this.modeEl.classList.add('live');
     }
-    this.say('こんにちは。ジェスチャーの様子を見ています。操作してみてください。');
+    this.say('Hi. I am watching your gestures — go ahead and try something.');
   }
 
   /** UI 側で起きたことを溜めておく（AI に渡す文脈になる） */
@@ -78,15 +78,15 @@ export class AIBridge {
       const recent = this.events.slice(-6).map(e => e.type);
       if (!recent.length) return this.say(pick(LOCAL_LINES.idle)());
       return this.say(
-        `直近の操作: ${recent.join(' → ')}。` +
-        `いま Intensity ${uiState.intensity}、Zoom ${uiState.zoom}×、` +
-        `選択中は ${uiState.selectedCard ?? 'なし'} です。` +
-        '（ローカル応答モード。config.js の AI_ENDPOINT を設定すると Claude が答えます）'
+        `Recent actions: ${recent.join(' > ')}. ` +
+        `Intensity is ${uiState.intensity}, Zoom ${uiState.zoom}x, ` +
+        `selection is ${uiState.selectedCard ?? 'none'}. ` +
+        '(Local mode — set AI_ENDPOINT in config.js and Claude will answer instead.)'
       );
     }
 
     this._busy = true;
-    const thinking = this.say('考えています…', 'thinking');
+    const thinking = this.say('Thinking…', 'thinking');
     try {
       const res = await fetch(AI_ENDPOINT, {
         method: 'POST',
@@ -100,14 +100,14 @@ export class AIBridge {
       if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
       const data = await res.json();
       thinking.remove();
-      const text = data.text ?? '(応答が空でした)';
+      const text = data.text ?? '(empty response)';
       this.say(text);
       this.history.push({ role: 'assistant', content: text });
       this.events.length = 0;
     } catch (e) {
       thinking.remove();
       console.error('[ai-bridge]', e);
-      this.say(`API 呼び出しに失敗しました: ${e.message}`);
+      this.say(`API request failed: ${e.message}`);
     } finally {
       this._busy = false;
     }

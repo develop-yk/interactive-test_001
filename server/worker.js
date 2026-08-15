@@ -14,15 +14,16 @@
 
 const MODEL = 'claude-haiku-4-5-20251001'; // 低レイテンシ重視。品質重視なら claude-sonnet-5
 
-const SYSTEM = `あなたは「Gesture UI Lab」というWebデモの実況ナビゲーターです。
-ユーザーはWebカメラの前で手のジェスチャーと表情だけでUIを操作しています。
-渡されるのは直近の操作イベントログと現在のUI状態です。
+// UI の表記は英語で統一しているので、応答も英語で返させる
+const SYSTEM = `You are the live commentator for a web demo called "Gesture UI Demo".
+The user is operating the interface using only hand gestures and facial expression
+in front of a webcam. You receive a log of their recent actions and the current UI state.
 
-制約:
-- 日本語で、2文以内、80文字程度まで。
-- 実況＋次に試すと面白い操作の提案を混ぜる。
-- 毎回同じ言い回しにしない。
-- 箇条書き・見出し・絵文字の多用はしない。`;
+Rules:
+- Reply in English, 2 sentences maximum, around 30 words.
+- Mix a short play-by-play with a suggestion of what to try next.
+- Vary your phrasing; never repeat the same sentence twice.
+- No bullet lists, no headings, no emoji.`;
 
 export default {
   async fetch(request, env) {
@@ -46,9 +47,9 @@ export default {
     const { events = [], ui = {}, history = [] } = body;
 
     const userMsg =
-      `【UI状態】${JSON.stringify(ui)}\n` +
-      `【直近の操作】${events.length ? events.map(e => e.type + (e.target ? `:${e.target}` : '')).join(', ') : '（まだ操作なし）'}\n` +
-      `これを踏まえて一言お願いします。`;
+      `[UI state] ${JSON.stringify(ui)}\n` +
+      `[Recent actions] ${events.length ? events.map(e => e.type + (e.target ? `:${e.target}` : '')).join(', ') : '(nothing yet)'}\n` +
+      `Give me one short remark based on this.`;
 
     const messages = [
       ...history.slice(-4).map(h => ({ role: h.role, content: h.content })),

@@ -1,4 +1,4 @@
-# Gesture UI Lab — MediaPipe × Claude
+# Gesture UI Demo — MediaPipe × Claude
 
 ノートPCの Web カメラだけで、**手のジェスチャーと表情で Web UI を操作する**リアルタイム体験のプロトタイプです。
 カメラスルーの画を全画面に敷き、**センシング結果（ランドマーク）と UI を同じ画面に重ねて**表示します。
@@ -11,16 +11,18 @@
 
 ## 何ができるか
 
-| 入力 | 動作 |
-|---|---|
-| 人差し指 | カーソル移動 |
-| ピンチ（親指＋人差し指） | クリック／スライダーのドラッグ |
-| パー（手を開く） | カードの選択を解除 |
-| 両手の間隔 | Zoom ゲージ |
-| 笑顔 | 「いいね」を送る（52 ブレンドシェイプから判定） |
-| 首の向き | 背景のパララックス |
+| 入力 | 動作 | 画面表記 |
+|---|---|---|
+| 人差し指 | カーソル移動 | Point |
+| ピンチ（親指＋人差し指） | クリック／スライダーのドラッグ | Pinch |
+| パー（手を開く） | カードの選択を解除 | Open |
+| 両手の間隔 | Zoom ゲージ | Zoom (2 hands) |
+| 笑顔 | 「いいね」を送る（52 ブレンドシェイプから判定） | Smile |
+| 首の向き | 背景のパララックス | — |
 
-UI に絵文字・アイコンは使っていません。パネルの位置は固定で、掴んで動かす操作はありません。
+**画面上の表記はすべて英語**です（このドキュメントとソースコード中のコメントのみ日本語）。
+絵文字・アイコンは一切使っていません。パネルの位置は固定で、掴んで動かす操作はありません。
+Claude コメンタリーの応答も英語で返るよう、プロキシ側のシステムプロンプトを設定してあります。
 
 ---
 
@@ -115,7 +117,7 @@ python3 -m http.server 8000
 
 ```bash
 git add -A
-git commit -m "Add gesture UI lab"
+git commit -m "Update gesture UI demo"
 git push origin main
 ```
 
@@ -149,10 +151,10 @@ wrangler secret put ALLOWED_ORIGIN        # https://develop-yk.github.io
 デプロイ後に表示される URL を `js/config.js` に設定します。
 
 ```js
-export const AI_ENDPOINT = 'https://gesture-ui-lab-proxy.<your-subdomain>.workers.dev';
+export const AI_ENDPOINT = 'https://gesture-ui-demo-proxy.<your-subdomain>.workers.dev';
 ```
 
-再度 push すれば、画面右下の AI パネルが「Claude API 接続モード」に変わります。
+再度 push すれば、画面右下の AI パネルが `Claude API connected` に変わります。
 
 ### ローカルで試す場合
 
@@ -191,7 +193,7 @@ ANTHROPIC_API_KEY=sk-ant-... node server/local-proxy.mjs
 | `yawGain` | 首の向き → 背景視差の量(px) | 動きが派手になる |
 
 カメラ映像の明るさと暗幕は `css/style.css` 冒頭の CSS 変数 `--cam-opacity` / `--scrim` です
-（既定は明るめの `.85` / `.22`）。会場の照明に合わせるならここを触ってください。
+（既定は標準の `.55` / `.42`）。会場の照明に合わせるならここを触ってください。
 ランドマークの色や線の太さは `js/viz.js` の `C` にまとめてあります。
 
 カーソルの可動域は `js/gestures.js` の `EXP`（既定 1.9）です。

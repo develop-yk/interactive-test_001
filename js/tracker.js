@@ -27,11 +27,11 @@ export class Tracker {
 
   /** モデルのロード（数秒かかる。約 11MB） */
   async load(onProgress = () => {}) {
-    onProgress('WASM ランタイムを取得中…');
+    onProgress('Loading WASM runtime\u2026');
     const vision = await FilesetResolver.forVisionTasks(MP_WASM);
 
     const make = async (delegate) => {
-      onProgress(`モデルを読み込み中… (${delegate})`);
+      onProgress(`Loading models\u2026 (${delegate})`);
       const [hand, face] = await Promise.all([
         HandLandmarker.createFromOptions(vision, {
           baseOptions: { modelAssetPath: MODEL_HAND, delegate },
@@ -55,7 +55,7 @@ export class Tracker {
     try {
       ({ hand: this.hand, face: this.face } = await make(DELEGATE));
     } catch (e) {
-      console.warn('[tracker] GPU delegate 失敗 → CPU にフォールバック', e);
+      console.warn('[tracker] GPU delegate failed, falling back to CPU', e);
       ({ hand: this.hand, face: this.face } = await make('CPU'));
     }
 
@@ -65,7 +65,7 @@ export class Tracker {
   /** カメラ起動（HTTPS もしくは localhost が必須） */
   async startCamera() {
     if (!navigator.mediaDevices?.getUserMedia) {
-      throw new Error('このブラウザは getUserMedia に対応していません');
+      throw new Error('This browser does not support getUserMedia');
     }
     const stream = await navigator.mediaDevices.getUserMedia({
       video: { width: { ideal: 960 }, height: { ideal: 720 }, facingMode: 'user' },
@@ -102,7 +102,7 @@ export class Tracker {
       handRes = this.hand.detectForVideo(v, ts);
       faceRes = this.face.detectForVideo(v, ts);
     } catch (e) {
-      console.error('[tracker] 推論エラー', e);
+      console.error('[tracker] inference error', e);
       return;
     }
 

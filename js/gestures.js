@@ -178,7 +178,8 @@ export function twoHandSpread(left, right) {
   return dist2({ x: left.nx, y: left.ny }, { x: right.nx, y: right.ny });
 }
 
-export const GESTURE_JP = {
-  none: '—', point: '指差し', pinch: 'ピンチ',
-  fist: 'グー', open: 'パー', peace: 'ピース',
+/** UI 表示用のラベル（表記は英語で統一） */
+export const GESTURE_LABEL = {
+  none: '—', point: 'Point', pinch: 'Pinch',
+  fist: 'Fist', open: 'Open', peace: 'Peace',
 };

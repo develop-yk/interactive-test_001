@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Gesture UI Lab — MediaPipe × Claude</title>
+<title>Gesture UI Demo — MediaPipe × Claude</title>
 <link rel="stylesheet" href="./css/style.css">
 </head>
 <body>
@@ -11,23 +11,25 @@
 <!-- ===== 起動オーバーレイ（カメラ許可はユーザー操作起点で） ===== -->
 <div id="gate" class="gate">
   <div class="gate-card">
-    <p class="gate-kicker">MediaPipe Tasks Vision × Claude</p>
-    <h1>Gesture UI Lab</h1>
+    <p class="gate-kicker">MediaPipe Tasks Vision &times; Claude</p>
+    <h1>Gesture UI Demo</h1>
     <p class="gate-lead">
-      Web カメラの映像から <b>手のランドマーク（21点 × 2手）</b> と
-      <b>顔の表情（52 ブレンドシェイプ）</b> をブラウザ内でリアルタイム推論し、
-      カメラスルーの画に重ねた UI を手で直接操作します。<br>
-      <span class="muted">映像はすべて端末内で処理され、サーバーに送信されません。</span>
+      <b>Hand landmarks (21 points &times; 2 hands)</b> and
+      <b>facial expression (52 blendshapes)</b> are inferred in real time,
+      entirely inside your browser. Control the interface layered over the
+      live camera feed using only your hands and face.<br>
+      <span class="muted">All video is processed on this device. Nothing is sent to a server.</span>
     </p>
     <ul class="gate-list">
-      <li><span class="k">人差し指</span>カーソル移動</li>
-      <li><span class="k">ピンチ</span>クリック / ドラッグ</li>
-      <li><span class="k">パー</span>リセット</li>
-      <li><span class="k">笑顔</span>「いいね」を送る</li>
-      <li><span class="k">首の向き</span>背景のパララックス</li>
+      <li><span class="k">Index finger</span>Move the cursor</li>
+      <li><span class="k">Pinch</span>Click and drag</li>
+      <li><span class="k">Open palm</span>Clear the selection</li>
+      <li><span class="k">Two hands</span>Zoom by hand span</li>
+      <li><span class="k">Smile</span>Send a like</li>
+      <li><span class="k">Head turn</span>Background parallax</li>
     </ul>
-    <button id="startBtn" class="btn-primary">カメラを起動して開始</button>
-    <p id="gateStatus" class="gate-status">クリックするとカメラの利用許可を求めます</p>
+    <button id="startBtn" class="btn-primary">Start Camera</button>
+    <p id="gateStatus" class="gate-status">You will be asked to allow camera access</p>
   </div>
 </div>
 
@@ -45,11 +47,11 @@
 <main id="stage" class="stage" hidden>
 
   <header class="topbar">
-    <div class="brand">Gesture&nbsp;UI&nbsp;Lab</div>
+    <div class="brand">Gesture&nbsp;UI&nbsp;Demo</div>
     <div class="hud">
-      <span class="chip" id="hudGestureL">左手 —</span>
-      <span class="chip" id="hudGestureR">右手 —</span>
-      <span class="chip" id="hudFace">顔 —</span>
+      <span class="chip" id="hudGestureL">Left &mdash;</span>
+      <span class="chip" id="hudGestureR">Right &mdash;</span>
+      <span class="chip" id="hudFace">Face &mdash;</span>
       <span class="chip mono" id="hudFps">-- fps</span>
     </div>
   </header>
@@ -59,28 +61,28 @@
     <!-- 左カラム -->
     <div class="col">
       <div class="panel panel-cards">
-        <h2 class="panel-title">ピンチで選択</h2>
+        <h2 class="panel-title">Pinch to Select</h2>
         <div class="cards" id="cards"></div>
-        <p class="panel-note" id="cardNote">カードにカーソルを重ねてピンチ</p>
+        <p class="panel-note" id="cardNote">Hover a card, then pinch</p>
       </div>
 
       <div class="panel panel-face">
-        <h2 class="panel-title">表情で反応する</h2>
+        <h2 class="panel-title">Facial Expression</h2>
         <div class="bs" id="blendshapes"></div>
-        <div class="reaction" id="reaction"><span>笑顔で「いいね」</span></div>
+        <div class="reaction" id="reaction"><span>Smile to send a like</span></div>
       </div>
     </div>
 
     <!-- 中央：自分が映るスペース -->
     <div class="center" aria-hidden="true">
       <div class="reticle"><i></i><i></i><i></i><i></i></div>
-      <div class="center-status" id="centerStatus">カメラの前で手をかざしてください</div>
+      <div class="center-status" id="centerStatus">Hold your hand up to the camera</div>
     </div>
 
     <!-- 右カラム -->
     <div class="col">
       <div class="panel panel-controls">
-        <h2 class="panel-title">ピンチしたまま動かす</h2>
+        <h2 class="panel-title">Pinch and Drag</h2>
 
         <div class="ctl">
           <span class="ctl-label">Intensity</span>
@@ -98,17 +100,17 @@
         </div>
 
         <div class="ctl">
-          <span class="ctl-label">Zoom（両手間隔）</span>
+          <span class="ctl-label">Zoom (2 hands)</span>
           <div class="gauge"><div class="gauge-fill" id="zoomFill"></div></div>
-          <output class="ctl-val mono" id="zoomVal">1.00×</output>
+          <output class="ctl-val mono" id="zoomVal">1.00&times;</output>
         </div>
       </div>
 
       <div class="panel panel-ai">
-        <h2 class="panel-title">Claude コメンタリー</h2>
-        <div class="ai-mode" id="aiMode">ローカル応答モード（API 未接続）</div>
+        <h2 class="panel-title">Claude Commentary</h2>
+        <div class="ai-mode" id="aiMode">Local mode (API not connected)</div>
         <div class="ai-log" id="aiLog"></div>
-        <button class="btn-ghost" id="aiAskBtn" data-clickable>いま何してた？と聞く</button>
+        <button class="btn-ghost" id="aiAskBtn" data-clickable>Ask what I just did</button>
       </div>
     </div>
 
