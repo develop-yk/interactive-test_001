@@ -1,12 +1,12 @@
 /**
  * main.js — 全体の配線
- *   カメラ → Tracker(MediaPipe) → gestures(状態化) → UI(操作) / Viz(AR描画) / AIBridge(解説)
+ *   カメラ → Tracker(MediaPipe) → gestures(状態化) → UI(操作) / Viz(AR描画) / Shape3D(3D)
  */
 import { Tracker } from './tracker.js';
 import { Viz } from './viz.js';
+import { Shape3D } from './shape3d.js';
 import { HandState, FaceState, twoHandSpread, GESTURE_LABEL } from './gestures.js';
 import { UI } from './ui.js';
-import { AIBridge } from './ai-bridge.js';
 import { TUNING } from './config.js';
 
 const $ = s => document.querySelector(s);
@@ -25,13 +25,13 @@ const curR    = $('#cursorR');
 const curL    = $('#cursorL');
 
 const ui  = new UI(document);
-const ai  = new AIBridge($('#aiLog'), $('#aiMode'));
 const viz = new Viz($('#overlay'), $('#video'));
 
-ui.onEvent = ev => {
-  if (ev.type === 'ask') ai.ask(ui.snapshot());
-  else ai.push(ev);
-};
+// ワイヤーフレーム 3D。自前の rAF ループで回るので、カメラが止まっていても動く
+const shape = new Shape3D($('#shapeCanvas'));
+ui.shape = shape;
+// マウスでも切り替えられるようにしておく（検証・登壇時のフォールバック）
+ui.shapeTabs.forEach(t => t.addEventListener('click', () => ui._selectShape(t.dataset.shape)));
 
 const left  = new HandState('Left');
 const right = new HandState('Right');
@@ -64,10 +64,9 @@ startBtn.addEventListener('click', async () => {
 
     viz.resize();
     stage.hidden = false;
+    requestAnimationFrame(() => shape.resize());   // パネルが可視になってから実寸を取る
     gate.classList.add('hidden');
     setTimeout(() => gate.remove(), 600);
-
-    setInterval(() => ai.ask(ui.snapshot(), { auto: true }), 12000);
 
   } catch (e) {
     console.error(e);
@@ -112,6 +111,7 @@ function onResults(handRes, faceRes) {
   }
 
   ui.setZoom(twoHandSpread(left, right));
+  ui.tick();
   ui.setFace(face);
   if (face.present) ui.setParallax(face.yaw, face.pitch, TUNING.yawGain);
 
@@ -152,7 +152,7 @@ function paintCursor(el, h) {
 // デバッグ用。DevTools から __lab.ui / __lab.right などを覗ける。
 //   __lab.ui.handleHand({x:400,y:300,present:true,pinching:true,justPinched:true,
 //                        justReleased:false,gesture:'pinch'}, true)
-window.__lab = { get tracker() { return tracker; }, ui, ai, viz, left, right, face };
+window.__lab = { get tracker() { return tracker; }, ui, viz, shape, left, right, face };
 
 // タブが裏に回ったら推論を止めて電池と発熱を節約
 document.addEventListener('visibilitychange', () => {

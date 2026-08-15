@@ -23,7 +23,8 @@
     <ul class="gate-list">
       <li><span class="k">Index finger</span>Move the cursor</li>
       <li><span class="k">Pinch</span>Click and drag</li>
-      <li><span class="k">Open palm</span>Clear the selection</li>
+      <li><span class="k">Pinch on object</span>Rotate the wireframe</li>
+      <li><span class="k">Open palm</span>Reset the object</li>
       <li><span class="k">Two hands</span>Zoom by hand span</li>
       <li><span class="k">Smile</span>Send a like</li>
       <li><span class="k">Head turn</span>Background parallax</li>
@@ -58,28 +59,7 @@
 
   <section class="board" id="board">
 
-    <!-- 左カラム -->
-    <div class="col">
-      <div class="panel panel-cards">
-        <h2 class="panel-title">Pinch to Select</h2>
-        <div class="cards" id="cards"></div>
-        <p class="panel-note" id="cardNote">Hover a card, then pinch</p>
-      </div>
-
-      <div class="panel panel-face">
-        <h2 class="panel-title">Facial Expression</h2>
-        <div class="bs" id="blendshapes"></div>
-        <div class="reaction" id="reaction"><span>Smile to send a like</span></div>
-      </div>
-    </div>
-
-    <!-- 中央：自分が映るスペース -->
-    <div class="center" aria-hidden="true">
-      <div class="reticle"><i></i><i></i><i></i><i></i></div>
-      <div class="center-status" id="centerStatus">Hold your hand up to the camera</div>
-    </div>
-
-    <!-- 右カラム -->
+    <!-- 左カラム: コントロール + 表情 -->
     <div class="col">
       <div class="panel panel-controls">
         <h2 class="panel-title">Pinch and Drag</h2>
@@ -106,11 +86,33 @@
         </div>
       </div>
 
-      <div class="panel panel-ai">
-        <h2 class="panel-title">Commentary</h2>
-        <div class="ai-mode" id="aiMode">Local mode (API not connected)</div>
-        <div class="ai-log" id="aiLog"></div>
-        <button class="btn-ghost" id="aiAskBtn" data-clickable>Ask what I just did</button>
+      <div class="panel panel-face">
+        <h2 class="panel-title">Facial Expression</h2>
+        <div class="bs" id="blendshapes"></div>
+        <div class="reaction" id="reaction"><span>Smile to send a like</span></div>
+      </div>
+    </div>
+
+    <!-- 中央：自分が映るスペース -->
+    <div class="center" aria-hidden="true">
+      <div class="reticle"><i></i><i></i><i></i><i></i></div>
+      <div class="center-status" id="centerStatus">Hold your hand up to the camera</div>
+    </div>
+
+    <!-- 右カラム: 3D オブジェクトが縦いっぱい -->
+    <div class="col col-solo">
+      <div class="panel panel-shape">
+        <h2 class="panel-title">Wireframe Object</h2>
+        <div class="shape-stage" id="shapeStage" data-rotatable>
+          <canvas id="shapeCanvas"></canvas>
+          <span class="shape-angle mono" id="shapeAngle">0&deg; / 0&deg;</span>
+          <span class="shape-hint" id="shapeHint">Pinch and move to rotate</span>
+        </div>
+        <div class="shape-tabs">
+          <button class="shape-tab is-on" data-clickable data-shape="prism">Rectangular prism</button>
+          <button class="shape-tab"       data-clickable data-shape="pyramid">Triangular pyramid</button>
+          <button class="shape-tab"       data-clickable data-shape="dodeca">Regular dodecahedron</button>
+        </div>
       </div>
     </div>
 

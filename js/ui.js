@@ -3,16 +3,11 @@
  *
  * 「カーソル位置 + ピンチの押下/離上」だけを入力として受け取り、
  * hover / click / drag を自前でディスパッチします（マウスイベントは使わない）。
+ *
+ * ドラッグは 2 種類:
+ *   slider … Intensity スライダー
+ *   rotate … ワイヤーフレーム 3D オブジェクトの回転
  */
-
-const CARD_DATA = [
-  { name: 'Mixer',    tag: 'audio'  },
-  { name: 'Map',      tag: 'geo'    },
-  { name: 'Chart',    tag: 'data'   },
-  { name: 'Modules',  tag: 'system' },
-  { name: 'Timeline', tag: 'video'  },
-  { name: 'Sensors',  tag: 'iot'    },
-];
 
 const BS_ROWS = [
   ['mouthSmileLeft',  'Smile L'],
@@ -23,12 +18,13 @@ const BS_ROWS = [
   ['eyeBlinkRight',   'Blink R'],
 ];
 
+/** hover / 押下の対象になる要素 */
+const HIT = '[data-clickable], #slider, #toggle, [data-rotatable]';
+
 export class UI {
   constructor(root) {
     this.root       = root;
     this.board      = root.querySelector('#board');
-    this.cardsEl    = root.querySelector('#cards');
-    this.cardNote   = root.querySelector('#cardNote');
     this.slider     = root.querySelector('#slider');
     this.sliderVal  = root.querySelector('#sliderVal');
     this.toggle     = root.querySelector('#toggle');
@@ -37,35 +33,28 @@ export class UI {
     this.bsEl       = root.querySelector('#blendshapes');
     this.reaction   = root.querySelector('#reaction');
     this.toastEl    = root.querySelector('#toast');
-    this.aiAskBtn   = root.querySelector('#aiAskBtn');
+    this.shapeStage = root.querySelector('#shapeStage');
+    this.shapeHint  = root.querySelector('#shapeHint');
+    this.shapeAngle = root.querySelector('#shapeAngle');
+    this.shapeTabs  = [...root.querySelectorAll('.shape-tab')];
 
     this.sliderValue = 0.5;
     this.zoom        = 1.0;
     this.likes       = 0;
-    this.selected    = null;
+    this.shapeKey    = 'prism';
 
-    this.onEvent = () => {};   // main.js が購読（AI へのイベントログ用）
-    this.actions = {};         // data-action="xxx" のボタンから呼ばれる関数を main.js が登録
+    this.shape   = null;       // main.js が Shape3D インスタンスを注入する
+    this.onEvent = () => {};   // 操作イベントの購読フック（AI 連携を戻すときに使う）
+    this.actions = {};         // data-action="xxx" のボタン用フック
 
-    this._drag  = null;        // スライダーをドラッグ中か
+    this._drag  = null;        // { type:'slider' } | { type:'rotate', x, y }
     this._hover = null;
     this._bsBars = {};
     this._toastT = 0;
 
-    this._buildCards();
     this._buildBlendshapes();
-  }
-
-  _buildCards() {
-    this.cardsEl.innerHTML = '';
-    for (const c of CARD_DATA) {
-      const el = document.createElement('div');
-      el.className = 'card';
-      el.dataset.clickable = '';
-      el.dataset.name = c.name;
-      el.innerHTML = `<div class="name">${c.name}</div><div class="tag">${c.tag}</div>`;
-      this.cardsEl.appendChild(el);
-    }
+    // ヒントは一定時間で自動的に消す（回転すればその時点で消える）
+    this._hintT = setTimeout(() => this.shapeHint?.classList.add('is-hidden'), 9000);
   }
 
   _buildBlendshapes() {
@@ -88,38 +77,41 @@ export class UI {
   handleHand(h, primary) {
     if (!primary) return;
 
-    // --- スライダーのドラッグ継続 ---
+    // --- ドラッグ継続 ---
     if (this._drag) {
-      this._setSliderFromX(h.x);
+      if (this._drag.type === 'slider') {
+        this._setSliderFromX(h.x);
+      } else {
+        this.shape?.rotateBy(h.x - this._drag.x, h.y - this._drag.y);
+        this._drag.x = h.x; this._drag.y = h.y;
+      }
       if (h.justReleased || !h.present) this._endDrag();
       return;
     }
 
     if (!h.present) { this._setHover(null); return; }
 
-    // --- hover ---
-    const hit = this._elementAt(h.x, h.y, '[data-clickable], #slider, #toggle');
+    const hit = this._elementAt(h.x, h.y, HIT);
     this._setHover(hit);
 
-    // --- 押下 ---
     if (h.justPinched && hit) {
-      if (hit === this.slider)      this._beginSliderDrag(h.x);
-      else if (hit === this.toggle) this._toggleSwitch();
-      else if (hit === this.aiAskBtn) this.onEvent({ type: 'ask' });
-      else if (hit.classList.contains('card')) this._selectCard(hit);
-      else if (hit.dataset.action) this.actions[hit.dataset.action]?.(hit);
+      if (hit === this.slider)         this._beginSliderDrag(h.x);
+      else if (hit === this.toggle)    this._toggleSwitch();
+      else if (hit === this.shapeStage) this._beginRotate(h);
+      else if (hit.dataset.shape)      this._selectShape(hit.dataset.shape);
+      else if (hit.dataset.action)     this.actions[hit.dataset.action]?.(hit);
     }
   }
 
-  /** パー（開いた手）でカードの選択を解除 */
+  /** パー（開いた手）で 3D オブジェクトの姿勢をリセット */
   handleReset() {
-    this.cardsEl.querySelectorAll('.card').forEach(c => c.classList.remove('active'));
-    if (this.selected) { this.selected = null; this.cardNote.textContent = 'Selection cleared'; }
+    if (!this.shape) return;
+    this.shape.reset();
+    this.toast('Object reset');
   }
 
   _elementAt(x, y, selector) {
-    const stack = document.elementsFromPoint(x, y);
-    for (const el of stack) {
+    for (const el of document.elementsFromPoint(x, y)) {
       const m = el.closest(selector);
       if (m) return m;
     }
@@ -135,7 +127,13 @@ export class UI {
 
   _endDrag() {
     if (!this._drag) return;
-    this.slider.classList.remove('drag');
+    if (this._drag.type === 'slider') {
+      this.slider.classList.remove('drag');
+    } else {
+      this.shape?.endDrag();
+      this.shapeStage.classList.remove('drag');
+      this.onEvent({ type: 'rotate', target: this.shapeKey });
+    }
     this._drag = null;
   }
 
@@ -143,6 +141,14 @@ export class UI {
     this._drag = { type: 'slider' };
     this.slider.classList.add('drag');
     this._setSliderFromX(x);
+  }
+
+  _beginRotate(h) {
+    this._drag = { type: 'rotate', x: h.x, y: h.y };
+    this.shape?.beginDrag();
+    this.shapeStage.classList.add('drag');
+    clearTimeout(this._hintT);
+    this.shapeHint.classList.add('is-hidden');
   }
 
   _setSliderFromX(x) {
@@ -164,14 +170,18 @@ export class UI {
     this.onEvent({ type: 'toggle', value: on });
   }
 
-  _selectCard(el) {
-    this.cardsEl.querySelectorAll('.card').forEach(c => c.classList.remove('active'));
-    el.classList.add('active', 'pop');
-    setTimeout(() => el.classList.remove('pop'), 400);
-    this.selected = el.dataset.name;
-    this.cardNote.textContent = `Selected: ${this.selected}`;
-    this.toast(`${this.selected} selected`);
-    this.onEvent({ type: 'select', target: this.selected });
+  /** 3D オブジェクトの切り替え（マウスクリックからも呼ばれる） */
+  _selectShape(key) {
+    if (!this.shape?.setShape(key)) return;
+    this.shapeKey = key;
+    let label = key;
+    for (const t of this.shapeTabs) {
+      const on = t.dataset.shape === key;
+      t.classList.toggle('is-on', on);
+      if (on) label = t.textContent.trim();
+    }
+    this.toast(label);
+    this.onEvent({ type: 'select', target: label });
   }
 
   /* ---------------- 表示更新 ---------------- */
@@ -183,9 +193,14 @@ export class UI {
     this.zoom += (z - this.zoom) * 0.25;
     this.zoomFill.style.width = `${((this.zoom - 0.6) / 1.8) * 100}%`;
     this.zoomVal.textContent = `${this.zoom.toFixed(2)}×`;
-    this.board.style.setProperty('--zoom', this.zoom.toFixed(3));
-    // パネルからはみ出さない範囲でスケール（0.6×→0.94 / 2.4×→1.10）
-    this.cardsEl.style.transform = `scale(${(0.89 + this.zoom * 0.087).toFixed(3)})`;
+    this.shape?.setZoom(this.zoom);
+  }
+
+  /** 毎フレーム: 3D の姿勢表示を更新 */
+  tick() {
+    if (!this.shape) return;
+    const a = this.shape.angles();
+    this.shapeAngle.textContent = `${a.y}° / ${a.x}°`;
   }
 
   setFace(face) {
@@ -251,7 +266,8 @@ export class UI {
   /** 現在の UI 状態のスナップショット（AI に渡す文脈） */
   snapshot() {
     return {
-      selectedCard: this.selected,
+      shape: this.shapeKey,
+      rotation: this.shape?.angles() ?? null,
       intensity: +this.sliderValue.toFixed(2),
       wireframe: this.toggle.classList.contains('on'),
       zoom: +this.zoom.toFixed(2),

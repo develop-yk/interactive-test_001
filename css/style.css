@@ -99,6 +99,7 @@ body{
 .board{flex:1;display:grid;gap:16px;padding:14px 20px 20px;min-height:0;
   grid-template-columns:minmax(280px,344px) 1fr minmax(280px,344px)}
 .col{display:grid;grid-template-rows:1fr 1fr;gap:16px;min-height:0}
+.col-solo{grid-template-rows:1fr}     /* パネル 1 枚で上から下まで使う */
 
 /* 中央：カメラの画をそのまま見せる余白 */
 .center{position:relative;display:grid;place-items:center;pointer-events:none}
@@ -126,23 +127,38 @@ body{
 .panel-title{margin:0 0 12px;font-size:12px;font-weight:700;letter-spacing:.04em;color:#a7b6d0}
 .panel-note{margin:10px 0 0;font-size:11px;color:var(--muted)}
 
-/* ---------- カード ---------- */
-.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;flex:1;min-height:0;
-  transform-origin:center center;transition:transform .12s linear}
-.card{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:10px;
-  border:1px solid var(--line);border-radius:11px;background:rgba(255,255,255,.05);
-  transition:transform .16s cubic-bezier(.2,.9,.3,1.2),background .16s,border-color .16s;cursor:pointer}
-.card .name{font-size:13px;font-weight:600;letter-spacing:.01em}
-.card .tag{font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
-.card.hover .tag,.card.active .tag{color:#cfe6f7}
-.card.hover{transform:translateY(-4px) scale(1.03);border-color:rgba(92,200,255,.7);
-  background:rgba(92,200,255,.18)}
-.card.active{border-color:var(--ok);background:rgba(84,224,160,.2)}
-.card.pop{animation:pop .38s cubic-bezier(.2,.9,.3,1.4)}
-@keyframes pop{0%{transform:scale(1)}45%{transform:scale(1.12)}100%{transform:scale(1.03) translateY(-4px)}}
+/* ---------- 3D ワイヤーフレーム ---------- */
+.panel-shape{gap:10px}
+.shape-stage{position:relative;flex:1;min-height:0;border-radius:12px;
+  border:1px solid var(--line);background:rgba(255,255,255,.03);
+  cursor:grab;transition:border-color .18s,background .18s,box-shadow .18s}
+.shape-stage canvas{display:block;width:100%;height:100%}
+.shape-stage.hover{border-color:rgba(92,200,255,.6);background:rgba(92,200,255,.07)}
+.shape-stage.drag{border-color:rgba(92,200,255,.95);background:rgba(92,200,255,.11);
+  box-shadow:inset 0 0 40px rgba(92,200,255,.14);cursor:grabbing}
+.shape-angle{position:absolute;left:10px;top:8px;font-size:10px;color:var(--muted);
+  letter-spacing:.04em;pointer-events:none}
+.shape-hint{position:absolute;left:50%;bottom:8px;transform:translateX(-50%);
+  padding:3px 10px;border-radius:999px;background:rgba(6,10,18,.82);
+  font-size:10.5px;color:var(--muted);pointer-events:none;
+  transition:opacity .4s;white-space:nowrap}
+.shape-hint.is-hidden{opacity:0}
+.shape-stage.drag .shape-angle{color:var(--accent)}
+
+.shape-tabs{display:grid;gap:6px}
+.shape-tab{padding:8px 12px;border-radius:9px;cursor:pointer;text-align:left;
+  border:1px solid var(--line);background:rgba(255,255,255,.04);color:#b9c1d4;
+  font-family:inherit;font-size:11.5px;letter-spacing:.01em;transition:.15s}
+.shape-tab:hover,.shape-tab.hover{border-color:rgba(92,200,255,.7);
+  background:rgba(92,200,255,.15);color:#eaf8ff}
+.shape-tab.is-on{border-color:rgba(84,224,160,.65);background:rgba(84,224,160,.16);
+  color:#d8fff0;font-weight:600}
 
 /* ---------- コントロール ---------- */
-.panel-controls{gap:16px;justify-content:center}
+/* タイトルは上に固定し、コントロール群だけを縦中央に寄せる */
+.panel-controls{gap:16px}
+.panel-controls .ctl:first-of-type{margin-top:auto}
+.panel-controls .ctl:last-of-type{margin-bottom:auto}
 .ctl{display:grid;grid-template-columns:104px 1fr 56px;align-items:center;gap:10px}
 .ctl-label{font-size:11.5px;color:#aebbd0}
 .ctl-val{font-size:11.5px;text-align:right;color:var(--accent)}
@@ -175,22 +191,6 @@ body{
 .reaction{margin-top:10px;padding:9px;border:1px dashed var(--line);border-radius:11px;
   text-align:center;font-size:12.5px;color:var(--muted);transition:.2s}
 .reaction.fire{border-color:var(--ok);color:var(--ok);background:rgba(84,224,160,.12)}
-
-/* ---------- AI ---------- */
-.panel-ai{gap:8px}
-.ai-mode{font-size:10.5px;color:var(--muted);padding:3px 9px;border:1px solid var(--line);
-  border-radius:999px;align-self:flex-start}
-.ai-mode.live{color:var(--ok);border-color:rgba(84,224,160,.55)}
-.ai-log{flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;gap:7px;
-  padding-right:4px;font-size:12.5px;line-height:1.65}
-.ai-msg{padding:9px 12px;border-radius:11px 11px 11px 4px;background:rgba(255,255,255,.07);
-  border:1px solid var(--line);animation:fade .3s}
-.ai-msg.thinking{color:var(--muted);font-style:italic}
-@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
-.btn-ghost{align-self:flex-start;padding:8px 14px;border-radius:10px;cursor:pointer;
-  border:1px solid var(--line);background:rgba(255,255,255,.07);color:var(--ink);font-size:11.5px;
-  transition:.16s;font-family:inherit}
-.btn-ghost:hover,.btn-ghost.hover{border-color:rgba(92,200,255,.75);background:rgba(92,200,255,.2)}
 
 /* ---------- 4. ランドマーク AR オーバーレイ ---------- */
 .overlay{position:fixed;inset:0;z-index:4;pointer-events:none}

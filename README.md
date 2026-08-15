@@ -4,8 +4,11 @@
 カメラスルーの画を全画面に敷き、**センシング結果（ランドマーク）と UI を同じ画面に重ねて**表示します。
 推論はすべてブラウザ内（WebAssembly + WebGL）で完結し、**映像は一切サーバーに送信されません**。
 
-> **Step 1（今すぐ動く）** … API キー不要。GitHub Pages に置くだけ。
-> **Step 2（あとから足せる）** … Claude API プロキシを立てると、AI が操作を実況・案内します。
+API キー不要。GitHub Pages に置くだけで動きます。
+
+> **Claude 連携について**: 画面から Commentary パネルを外したため、AI 実況は現在オフです。
+> 実装（`js/ai-bridge.js` と `server/`）はリポジトリに残してあるので、
+> 表示先の DOM を用意して `main.js` で `AIBridge` を再度 new すれば復帰できます。手順は後述。
 
 ---
 
@@ -15,13 +18,15 @@
 |---|---|---|
 | 人差し指 | カーソル移動 | Point |
 | ピンチ（親指＋人差し指） | クリック／スライダーのドラッグ | Pinch |
-| パー（手を開く） | カードの選択を解除 | Open |
-| 両手の間隔 | Zoom ゲージ | Zoom (2 hands) |
+| **3D オブジェクト上でピンチして動かす** | **ワイヤーフレームを上下左右に回転** | Pinch |
+| パー（手を開く） | 3D オブジェクトの姿勢をリセット | Open |
+| 両手の間隔 | 3D オブジェクトのスケール | Zoom (2 hands) |
 | 笑顔 | 「いいね」を送る（52 ブレンドシェイプから判定） | Smile |
 | 首の向き | 背景のパララックス | — |
 
 **画面上の表記はすべて英語**です（このドキュメントとソースコード中のコメントのみ日本語）。
 絵文字・アイコンは一切使っていません。パネルの位置は固定で、掴んで動かす操作はありません。
+3D オブジェクトの回転だけがピンチドラッグの対象です。
 Claude コメンタリーの応答も英語で返るよう、プロキシ側のシステムプロンプトを設定してあります。
 
 ---
@@ -38,6 +43,15 @@ z=2  暗幕                          ← UI を読みやすくする
 z=1  カメラスルー                  ← video（object-fit:cover + scaleX(-1)）
 z=0  装飾グリッド
 ```
+
+パネル配置:
+
+| | 内容 |
+|---|---|
+| 左カラム 上 | Pinch and Drag（スライダー / トグル / Zoom） |
+| 左カラム 下 | Facial Expression |
+| 右カラム | **Wireframe Object（3D）— 上から下まで 1 枚** |
+| 中央 | 空けてある（自分が映る） |
 
 オーバーレイは常に全部盛り（詳細表示のみ）です。切替 UI は置いていません。
 
@@ -56,6 +70,7 @@ index.html
 ├─ js/tracker.js     カメラ起動 ＋ MediaPipe 推論ループ（描画は持たない）
 ├─ js/gestures.js    ランドマーク → ジェスチャー状態（純粋ロジック / DOM 非依存）
 ├─ js/viz.js         全画面 AR オーバーレイ描画
+├─ js/shape3d.js     ワイヤーフレーム 3D レンダラー（依存ライブラリなし）
 ├─ js/ui.js          カーソルとピンチで駆動する UI ウィジェット
 ├─ js/ai-bridge.js   Claude 連携レイヤー（未接続ならローカル応答にフォールバック）
 └─ js/main.js        全体の配線
@@ -90,6 +105,30 @@ MediaPipe 付属の `DrawingUtils` は canvas 全体に等倍で描く前提な�
 ライブラリは `@mediapipe/tasks-vision@1.0.1` を jsDelivr から ESM で読み込みます。
 バージョンは **固定** しています（`@latest` は破壊的変更を拾うことがあるため）。
 上げるときは `js/config.js` の `MP_VERSION` と `js/tracker.js` の `import` 文の**両方**を揃えてください。
+
+### ワイヤーフレーム 3D（`js/shape3d.js`）
+
+three.js は使わず、頂点配列 → 回転行列 → 透視投影 を自前で回しています（追加の依存ゼロ）。
+
+| 立体 | 頂点 | 辺 | 面 |
+|---|---|---|---|
+| Rectangular prism | 8 | 12 | 6 |
+| Triangular pyramid | 4 | 6 | 4 |
+| Regular dodecahedron | 20 | 30 | 12 |
+
+正十二面体の頂点は `(±1,±1,±1)` と `(0,±1/φ,±φ)` の巡回で作り、
+**辺は「頂点間距離がちょうど 2/φ の対」を拾って自動生成**しています（手打ちの 30 行より安全）。
+3 立体すべてオイラーの多面体定理 `V − E + F = 2` を満たすことをテストで確認済みです。
+
+- 奥の辺から順に描き、深度に応じて線の濃さ・太さ・グローを変えて立体感を出しています
+- ピンチを離した後は慣性で回り続け、止まるとゆっくり自転します（展示で放置されたとき用）
+- 上下の回転は ±83° でクランプ（真上を越えて反転しないように）
+- 両手ズームは 3D のスケールに反映されます
+
+> **落とし穴**: `canvas.width` への代入は中身をクリアします。ResizeObserver は
+> 強制レイアウトのたびに同じサイズで再発火しうるので、`resize()` は
+> 寸法が変わったときだけ書き換えるようガードしています。これを入れないと
+> レイアウト計算のタイミングで 3D が一瞬消えます。
 
 ---
 
@@ -154,7 +193,24 @@ wrangler secret put ALLOWED_ORIGIN        # https://develop-yk.github.io
 export const AI_ENDPOINT = 'https://gesture-ui-demo-proxy.<your-subdomain>.workers.dev';
 ```
 
-再度 push すれば、画面右下の AI パネルが `Claude API connected` に変わります。
+### 画面に戻すには
+
+1. `index.html` の右カラムにログ用の DOM を追加する
+
+```html
+<div class="panel panel-ai">
+  <h2 class="panel-title">Commentary</h2>
+  <div class="ai-mode" id="aiMode">Local mode (API not connected)</div>
+  <div class="ai-log" id="aiLog"></div>
+  <button class="btn-ghost" id="aiAskBtn" data-clickable>Ask what I just did</button>
+</div>
+```
+
+2. 右カラムの `col-solo` クラスを外す（2 枚並びに戻す）
+3. `js/main.js` で `AIBridge` を import して `new AIBridge($('#aiLog'), $('#aiMode'))`、
+   `ui.onEvent` を `ai.push` / `ai.ask` に繋ぐ
+4. `css/style.css` に `.ai-log` / `.ai-msg` / `.ai-mode` / `.btn-ghost` のスタイルを戻す
+   （削除前の版は git 履歴にあります）
 
 ### ローカルで試す場合
 
@@ -170,8 +226,10 @@ ANTHROPIC_API_KEY=sk-ant-... node server/local-proxy.mjs
 
 ```jsonc
 {
-  "events":  [{ "type": "select", "target": "Chart", "t": 12345 }],
-  "ui":      { "selectedCard": "Chart", "intensity": 0.8, "wireframe": true, "zoom": 1.4, "likes": 3 },
+  "events":  [{ "type": "select", "target": "Regular dodecahedron", "t": 12345 },
+              { "type": "rotate", "target": "dodeca", "t": 13980 }],
+  "ui":      { "shape": "dodeca", "rotation": { "x": -18, "y": 143 },
+               "intensity": 0.8, "wireframe": true, "zoom": 1.4, "likes": 3 },
   "history": [{ "role": "assistant", "content": "..." }]
 }
 ```
@@ -217,6 +275,8 @@ DevTools のコンソールから内部状態を覗けます。
 __lab.right.gesture        // 右手の現在のジェスチャー
 __lab.face.bs              // ブレンドシェイプ値（52個）
 __lab.tracker.fps
+__lab.shape.setShape('dodeca')   // 3D の立体を切り替え
+__lab.shape.rotateBy(60, 20)     // 手を使わずに回す
 
 // 手を映さずに UI だけ試す
 __lab.ui.handleHand({ x: 400, y: 300, present: true, pinching: true,

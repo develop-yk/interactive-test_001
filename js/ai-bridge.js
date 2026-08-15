@@ -18,8 +18,11 @@ import { AI_ENDPOINT, AI_MIN_INTERVAL } from './config.js';
 
 const LOCAL_LINES = {
   select: [
-    n => `You picked ${n}. Selecting with nothing but a fingertip is the fun part of hand tracking.`,
-    n => `${n} is open. Try pinching and sliding sideways to move the Intensity slider next.`,
+    n => `Switched to the ${n}. Pinch anywhere on it and move your hand to spin it around.`,
+    n => `${n} loaded. Open your palm at any point to snap it back to its starting pose.`,
+  ],
+  rotate: [
+    () => 'Nice spin. Let go mid-motion and it keeps rotating with inertia.',
   ],
   toggle: [
     v => v ? 'Wireframe is now ON. The display mode has switched.' : 'Wireframe is back OFF.',
@@ -29,7 +32,7 @@ const LOCAL_LINES = {
   ],
   idle: [
     () => 'Show a hand to the camera and a cursor appears. Aim with your index finger, touch your thumb to click.',
-    () => 'Show both hands and change the distance between them to drive the Zoom gauge.',
+    () => 'Show both hands and change the distance between them to resize the wireframe object.',
     () => 'Turn your head and the background shifts. Head pose comes from a 4x4 transformation matrix.',
   ],
 };
@@ -59,7 +62,7 @@ export class AIBridge {
     if (this.events.length > 40) this.events.shift();
 
     // ローカルモードでは、意味のあるイベントに即時反応するとデモとして分かりやすい
-    if (!this.live && ['select', 'toggle', 'smile'].includes(ev.type)) {
+    if (!this.live && ['select', 'toggle', 'smile', 'rotate'].includes(ev.type)) {
       if (performance.now() - this._last < 2500) return;
       this._last = performance.now();
       const bank = LOCAL_LINES[ev.type];
@@ -80,7 +83,7 @@ export class AIBridge {
       return this.say(
         `Recent actions: ${recent.join(' > ')}. ` +
         `Intensity is ${uiState.intensity}, Zoom ${uiState.zoom}x, ` +
-        `selection is ${uiState.selectedCard ?? 'none'}. ` +
+        `the object is a ${uiState.shape ?? 'none'}. ` +
         '(Local mode — set AI_ENDPOINT in config.js and Claude will answer instead.)'
       );
     }
