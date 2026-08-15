@@ -154,6 +154,13 @@ body{
   background:rgba(92,200,255,.15);color:#eaf8ff}
 .shape-tab.is-on{border-color:rgba(84,224,160,.65);background:rgba(84,224,160,.16);
   color:#d8fff0;font-weight:600}
+/* 押した瞬間のフィードバック（ジェスチャーだと手応えが無いので視覚で返す） */
+.pressed{animation:press .22s ease-out}
+@keyframes press{
+  0%  {transform:scale(1);   box-shadow:0 0 0 0 rgba(92,200,255,.55)}
+  40% {transform:scale(.975);box-shadow:0 0 0 10px rgba(92,200,255,0)}
+  100%{transform:scale(1);   box-shadow:0 0 0 0 rgba(92,200,255,0)}
+}
 
 /* ---------- コントロール ---------- */
 /* タイトルは上に固定し、コントロール群だけを縦中央に寄せる */

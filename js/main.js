@@ -39,6 +39,7 @@ const face  = new FaceState();
 
 let tracker = null;
 let lastOpenPalm = 0;
+let primaryHand = null;   // 操作の主導権を持つ手
 
 /* ---------------- 起動 ---------------- */
 
@@ -100,8 +101,18 @@ function onResults(handRes, faceRes) {
   // --- カメラスルーの画にランドマークを重ねる（UI より前面）---
   viz.render(handRes, faceRes, { left, right, face });
 
-  // --- UI 操作。主導権は右手 → 無ければ左手 ---
-  const primary = right.present ? right : (left.present ? left : null);
+  // --- UI 操作 ---
+  // 主導権は「ピンチしている手」を最優先。両手が映っていても、
+  // 左手でつまめば左手で操作できる（右手固定だと片手が使えず操作を取りこぼす）。
+  // ドラッグ中だけは途中で持ち手が入れ替わらないよう固定する。
+  if (!ui.dragging || !primaryHand?.present) {
+    primaryHand = right.pinching ? right
+                : left.pinching  ? left
+                : right.present  ? right
+                : left.present   ? left
+                : null;
+  }
+  const primary = primaryHand;
   ui.handleHand(right, primary === right);
   ui.handleHand(left,  primary === left);
 
@@ -153,6 +164,7 @@ function paintCursor(el, h) {
 //   __lab.ui.handleHand({x:400,y:300,present:true,pinching:true,justPinched:true,
 //                        justReleased:false,gesture:'pinch'}, true)
 window.__lab = { get tracker() { return tracker; }, ui, viz, shape, left, right, face };
+window.__gest = { HandState, FaceState };   // 単体検証から素の判定ロジックを触るため
 
 // タブが裏に回ったら推論を止めて電池と発熱を節約
 document.addEventListener('visibilitychange', () => {

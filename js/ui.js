@@ -8,6 +8,7 @@
  *   slider … Intensity スライダー
  *   rotate … ワイヤーフレーム 3D オブジェクトの回転
  */
+import { TUNING } from './config.js';
 
 const BS_ROWS = [
   ['mouthSmileLeft',  'Smile L'],
@@ -20,6 +21,12 @@ const BS_ROWS = [
 
 /** hover / 押下の対象になる要素 */
 const HIT = '[data-clickable], #slider, #toggle, [data-rotatable]';
+
+/**
+ * ピンチ確定時に使う「狙い」の有効期限（ms）。
+ * 指を閉じ始める前に hover していた要素を latch しておき、押下時にそれを使う。
+ */
+const AIM_TTL_MS = 400;
 
 export class UI {
   constructor(root) {
@@ -49,6 +56,8 @@ export class UI {
 
     this._drag  = null;        // { type:'slider' } | { type:'rotate', x, y }
     this._hover = null;
+    this._aim  = null;         // 手が開いていたときに狙っていた要素
+    this._aimT = -1e9;
     this._bsBars = {};
     this._toastT = 0;
 
@@ -94,14 +103,34 @@ export class UI {
     const hit = this._elementAt(h.x, h.y, HIT);
     this._setHover(hit);
 
-    if (h.justPinched && hit) {
-      if (hit === this.slider)         this._beginSliderDrag(h.x);
-      else if (hit === this.toggle)    this._toggleSwitch();
-      else if (hit === this.shapeStage) this._beginRotate(h);
-      else if (hit.dataset.shape)      this._selectShape(hit.dataset.shape);
-      else if (hit.dataset.action)     this.actions[hit.dataset.action]?.(hit);
+    // 指を閉じる動作そのものでカーソルが 40px 前後ぶれる。押した瞬間の位置で
+    // 判定すると、狙いを外したり隣のボタンを踏んだりする。
+    // そこで「手が開いていた時点で狙っていた要素」を latch し、押下時にそれを使う。
+    // 手を離して別の場所へ動かせば latch も追従するので、古い対象が残ることはない。
+    const now = performance.now();
+    if (h.pinchAmount > TUNING.pinchOff) { this._aim = hit; this._aimT = now; }
+
+    const aimFresh = now - this._aimT < AIM_TTL_MS;
+    const target = (aimFresh ? (this._aim ?? hit) : hit);
+
+    if (h.justPinched && target && target.isConnected) {
+      if (target === this.slider)          this._beginSliderDrag(h.x);
+      else if (target === this.toggle)     this._toggleSwitch();
+      else if (target === this.shapeStage) this._beginRotate(h);
+      else if (target.dataset.shape)       this._selectShape(target.dataset.shape);
+      else if (target.dataset.action)      this.actions[target.dataset.action]?.(target);
+      this._flash(target);
     }
   }
+
+  /** 押したことが目で分かるように一瞬光らせる */
+  _flash(el) {
+    el.classList.add('pressed');
+    setTimeout(() => el.classList.remove('pressed'), 220);
+  }
+
+  /** ドラッグ中は主導権を持つ手を切り替えたくないので、main.js から参照する */
+  get dragging() { return this._drag !== null; }
 
   /** パー（開いた手）で 3D オブジェクトの姿勢をリセット */
   handleReset() {
