@@ -47,7 +47,7 @@ export class UI {
     this.onEvent = () => {};   // main.js が購読（AI へのイベントログ用）
     this.actions = {};         // data-action="xxx" のボタンから呼ばれる関数を main.js が登録
 
-    this._drag  = null;        // { type:'slider' } | { type:'panel', el, dx, dy }
+    this._drag  = null;        // スライダーをドラッグ中か
     this._hover = null;
     this._bsBars = {};
     this._toastT = 0;
@@ -88,34 +88,14 @@ export class UI {
   handleHand(h, primary) {
     if (!primary) return;
 
-    // --- ドラッグ継続 ---
+    // --- スライダーのドラッグ継続 ---
     if (this._drag) {
-      if (this._drag.type === 'slider') this._setSliderFromX(h.x);
-      if (this._drag.type === 'panel') {
-        const el = this._drag.el;
-        el.style.transform =
-          `translate(${h.x - this._drag.dx}px, ${h.y - this._drag.dy}px)`;
-      }
+      this._setSliderFromX(h.x);
       if (h.justReleased || !h.present) this._endDrag();
       return;
     }
 
     if (!h.present) { this._setHover(null); return; }
-
-    // --- グーでパネルを掴む ---
-    if (h.gesture === 'fist') {
-      const panel = this._elementAt(h.x, h.y, '[data-grabbable]');
-      if (panel) {
-        // 掴んだ瞬間の translate 量を基準にする（掴み直しても飛ばないように）
-        const t = getComputedStyle(panel).transform;
-        const cur = (!t || t === 'none') ? { m41: 0, m42: 0 } : new DOMMatrixReadOnly(t);
-        this._drag = { type: 'panel', el: panel, dx: h.x - cur.m41, dy: h.y - cur.m42 };
-        panel.classList.add('grabbed');
-        this.toast('パネルを掴みました（手を開くと放します）');
-        this.onEvent({ type: 'grab', target: panel.querySelector('.panel-title')?.textContent ?? 'panel' });
-        return;
-      }
-    }
 
     // --- hover ---
     const hit = this._elementAt(h.x, h.y, '[data-clickable], #slider, #toggle');
@@ -131,12 +111,9 @@ export class UI {
     }
   }
 
-  /** ✋ パー で選択解除・パネル位置リセット */
+  /** パー（開いた手）でカードの選択を解除 */
   handleReset() {
     this.cardsEl.querySelectorAll('.card').forEach(c => c.classList.remove('active'));
-    this.board.querySelectorAll('[data-grabbable]').forEach(p => {
-      p.style.transform = ''; p.classList.remove('grabbed');
-    });
     if (this.selected) { this.selected = null; this.cardNote.textContent = 'リセットしました'; }
   }
 
@@ -158,8 +135,7 @@ export class UI {
 
   _endDrag() {
     if (!this._drag) return;
-    if (this._drag.type === 'slider') this.slider.classList.remove('drag');
-    if (this._drag.type === 'panel')  this._drag.el.classList.remove('grabbed');
+    this.slider.classList.remove('drag');
     this._drag = null;
   }
 
@@ -222,7 +198,7 @@ export class UI {
     this.reaction.classList.toggle('fire', !!face.smiling);
     if (face.justSmiled) {
       this.likes++;
-      this.reaction.innerHTML = `<span>👍 いいね ×${this.likes}</span>`;
+      this.reaction.innerHTML = `<span>いいね ×${this.likes}</span>`;
       this.burst();
       this.onEvent({ type: 'smile', count: this.likes });
     }
@@ -237,24 +213,31 @@ export class UI {
     });
   }
 
+  /** 絵文字は使わず、小さな円のパーティクルで弾ける演出をつくる */
   burst() {
-    const n = 14;
+    const n = 18;
+    const colors = ['#54e0a0', '#5cc8ff', '#ff6ba9', '#ffffff'];
     const r = this.reaction.getBoundingClientRect();
+    const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
     for (let i = 0; i < n; i++) {
       const s = document.createElement('div');
-      s.textContent = ['✨', '👍', '💚', '⭐'][i % 4];
+      const size = 5 + Math.random() * 5;
       Object.assign(s.style, {
-        position: 'fixed', left: `${r.left + r.width / 2}px`, top: `${r.top + r.height / 2}px`,
-        zIndex: 60, pointerEvents: 'none', fontSize: '18px',
-        transition: 'transform .9s cubic-bezier(.15,.7,.3,1), opacity .9s',
+        position: 'fixed', left: `${cx}px`, top: `${cy}px`,
+        width: `${size}px`, height: `${size}px`, margin: `${-size / 2}px 0 0 ${-size / 2}px`,
+        borderRadius: '50%', background: colors[i % colors.length],
+        boxShadow: `0 0 10px ${colors[i % colors.length]}`,
+        zIndex: 60, pointerEvents: 'none',
+        transition: 'transform .85s cubic-bezier(.15,.75,.3,1), opacity .85s ease-out',
       });
       document.body.appendChild(s);
       requestAnimationFrame(() => {
-        const a = (i / n) * Math.PI * 2, d = 70 + Math.random() * 90;
-        s.style.transform = `translate(${Math.cos(a) * d}px, ${Math.sin(a) * d - 30}px) scale(.4)`;
+        const a = (i / n) * Math.PI * 2 + Math.random() * 0.3;
+        const d = 60 + Math.random() * 90;
+        s.style.transform = `translate(${Math.cos(a) * d}px, ${Math.sin(a) * d - 24}px) scale(.3)`;
         s.style.opacity = '0';
       });
-      setTimeout(() => s.remove(), 950);
+      setTimeout(() => s.remove(), 900);
     }
   }
 

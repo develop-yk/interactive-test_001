@@ -7,9 +7,9 @@
  *  DrawingUtils は canvas 全体に等倍で描く前提なので、ここでは使わず自前で描く。
  *  （そのぶん番号ラベルやバウンディングボックスなど自由に足せる）
  *
- *  モード:
- *    'simple'   … 骨格線と顔の輪郭だけ。UI の文字が読みやすい
- *    'detailed' … 顔メッシュ / 虹彩 / 番号付きランドマーク / bbox / 信頼度
+ *  描画内容（常時すべて表示）:
+ *    手  … 骨格線 / 関節点 / ピンチ線 / 21点の番号 / bbox / 左右判定と信頼度
+ *    顔  … メッシュ(tesselation) / 輪郭・目・眉・唇 / 虹彩 / yaw-pitch-roll / 表情スコア
  */
 import { HandLandmarker, FaceLandmarker }
   from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/vision_bundle.mjs';
@@ -41,14 +41,10 @@ export class Viz {
     this.canvas = canvas;
     this.video  = video;
     this.ctx    = canvas.getContext('2d');
-    this.mode   = 'simple';
     this.dpr    = Math.min(window.devicePixelRatio || 1, 2);
     this.resize();
     addEventListener('resize', () => this.resize());
   }
-
-  setMode(m) { this.mode = m; return m; }
-  toggleMode() { return this.setMode(this.mode === 'simple' ? 'detailed' : 'simple'); }
 
   resize() {
     const w = innerWidth, h = innerHeight;
@@ -82,32 +78,27 @@ export class Viz {
 
     const fit = this._fit();
     const P = this._mk(fit);
-    const detailed = this.mode === 'detailed';
 
     /* ---------------- 顔 ---------------- */
     const faceLm = faceRes?.faceLandmarks?.[0];
     if (faceLm) {
-      if (detailed) {
-        this._conns(faceLm, FaceLandmarker.FACE_LANDMARKS_TESSELATION, P, C.mesh, 0.5);
-      }
+      this._conns(faceLm, FaceLandmarker.FACE_LANDMARKS_TESSELATION, P, C.mesh, 0.5);
       for (const [conns, color, lw] of FACE_PARTS()) {
         this._conns(faceLm, conns, P, color, lw);
       }
-      if (detailed) {
-        this._conns(faceLm, FaceLandmarker.FACE_LANDMARKS_LEFT_IRIS,  P, C.iris, 2);
-        this._conns(faceLm, FaceLandmarker.FACE_LANDMARKS_RIGHT_IRIS, P, C.iris, 2);
+      this._conns(faceLm, FaceLandmarker.FACE_LANDMARKS_LEFT_IRIS,  P, C.iris, 2);
+      this._conns(faceLm, FaceLandmarker.FACE_LANDMARKS_RIGHT_IRIS, P, C.iris, 2);
 
-        const b = this._bbox(faceLm, P);
-        this._box(b, 'rgba(150,205,255,0.5)');
-        const f = states?.face;
-        const deg = r => `${(r * 57.3).toFixed(0)}°`;
-        this._tag(b.x, b.y - 8,
-          `FACE  yaw ${deg(f?.yaw ?? 0)}  pitch ${deg(f?.pitch ?? 0)}  roll ${deg(f?.roll ?? 0)}`,
-          C.face);
-        this._tag(b.x, b.y + b.h + 20,
-          `smile ${(f?.smileScore ?? 0).toFixed(2)}  brow ${(f?.browScore ?? 0).toFixed(2)}  jaw ${(f?.jawScore ?? 0).toFixed(2)}`,
-          C.face);
-      }
+      const b = this._bbox(faceLm, P);
+      this._box(b, 'rgba(150,205,255,0.5)');
+      const f = states?.face;
+      const deg = r => `${(r * 57.3).toFixed(0)}°`;
+      this._tag(b.x, b.y - 8,
+        `FACE  yaw ${deg(f?.yaw ?? 0)}  pitch ${deg(f?.pitch ?? 0)}  roll ${deg(f?.roll ?? 0)}`,
+        C.face);
+      this._tag(b.x, b.y + b.h + 20,
+        `smile ${(f?.smileScore ?? 0).toFixed(2)}  brow ${(f?.browScore ?? 0).toFixed(2)}  jaw ${(f?.jawScore ?? 0).toFixed(2)}`,
+        C.face);
     }
 
     /* ---------------- 手 ---------------- */
@@ -119,7 +110,7 @@ export class Viz {
       const st     = isLeft ? states?.left : states?.right;
 
       // 骨格
-      this._conns(lm, HandLandmarker.HAND_CONNECTIONS, P, color, detailed ? 3 : 2.6, true);
+      this._conns(lm, HandLandmarker.HAND_CONNECTIONS, P, color, 3, true);
 
       // 関節点
       ctx.fillStyle = '#fff';
@@ -143,20 +134,18 @@ export class Viz {
         ctx.beginPath(); ctx.arc(mx, my, 13, 0, 6.284); ctx.stroke();
       }
 
-      if (detailed) {
-        // 番号
-        ctx.font = '600 10px ui-monospace, Menlo, monospace';
-        ctx.fillStyle = 'rgba(255,255,255,0.85)';
-        ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-        lm.forEach((p, n) => { const q = P(p); ctx.fillText(String(n), q.x + 6, q.y - 6); });
+      // 21点の番号
+      ctx.font = '600 10px ui-monospace, Menlo, monospace';
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+      lm.forEach((p, n) => { const q = P(p); ctx.fillText(String(n), q.x + 6, q.y - 6); });
 
-        const bb = this._bbox(lm, P);
-        this._box(bb, color);
-        const name = isLeft ? 'LEFT' : 'RIGHT';
-        this._tag(bb.x, bb.y - 8,
-          `${name} ${(cat?.score ?? 0).toFixed(2)} · ${st?.gesture ?? '-'} · gap ${(st?.pinchAmount ?? 0).toFixed(2)}`,
-          color);
-      }
+      const bb = this._bbox(lm, P);
+      this._box(bb, color);
+      const name = isLeft ? 'LEFT' : 'RIGHT';
+      this._tag(bb.x, bb.y - 8,
+        `${name} ${(cat?.score ?? 0).toFixed(2)} · ${st?.gesture ?? '-'} · gap ${(st?.pinchAmount ?? 0).toFixed(2)}`,
+        color);
     });
   }
 

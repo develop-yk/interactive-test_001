@@ -8,8 +8,8 @@
   --accent2:#ff6ba9;
   --ok:#54e0a0;
   --r:16px;
-  --cam-opacity:.55;      /* 映像の明るさ（C キーで 3 段階） */
-  --scrim:.42;            /* UI を読みやすくするための暗幕 */
+  --cam-opacity:.85;      /* 映像の明るさ */
+  --scrim:.22;            /* UI を読みやすくするための暗幕 */
 }
 *{box-sizing:border-box}
 html,body{height:100%}
@@ -93,8 +93,6 @@ body{
 .chip{padding:5px 11px;border:1px solid var(--line);border-radius:999px;
   font-size:12px;color:#b9c1d4;background:rgba(8,12,22,.6);white-space:nowrap}
 .chip.hot{border-color:rgba(92,200,255,.65);color:#d6f2ff;background:rgba(92,200,255,.16)}
-.btn-chip{cursor:pointer;font-family:inherit;transition:.15s}
-.btn-chip:hover,.btn-chip.hover{border-color:rgba(92,200,255,.75);background:rgba(92,200,255,.2);color:#eaf8ff}
 
 /* 3カラム：左パネル / 自分が映る中央 / 右パネル */
 .board{flex:1;display:grid;gap:16px;padding:14px 20px 20px;min-height:0;
@@ -123,9 +121,7 @@ body{
 .panel{position:relative;padding:16px 18px;border:1px solid var(--line);border-radius:var(--r);
   background:var(--panel);backdrop-filter:blur(16px) saturate(120%);
   min-height:0;display:flex;flex-direction:column;overflow:hidden;
-  box-shadow:0 10px 40px rgba(0,0,0,.35);
-  transition:border-color .18s,box-shadow .18s}
-.panel.grabbed{border-color:rgba(255,107,169,.75);box-shadow:0 18px 60px rgba(0,0,0,.6);z-index:5}
+  box-shadow:0 10px 40px rgba(0,0,0,.35)}
 .panel-title{margin:0 0 12px;font-size:12px;font-weight:700;letter-spacing:.04em;color:#a7b6d0}
 .panel-note{margin:10px 0 0;font-size:11px;color:var(--muted)}
 

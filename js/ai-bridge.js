@@ -27,9 +27,6 @@ const LOCAL_LINES = {
   smile: [
     c => `笑顔を検出しました（通算 ${c} 回）。表情は 52 個のブレンドシェイプ値として毎フレーム取れています。`,
   ],
-  grab: [
-    t => `${t} を掴んでいます。グーで掴んで、手を開くと放せます。`,
-  ],
   idle: [
     () => '手をカメラに映すとカーソルが出ます。人差し指で狙って、親指とくっつけるとクリックです。',
     () => '両手を映して間隔を変えると Zoom ゲージが動きます。',
@@ -62,7 +59,7 @@ export class AIBridge {
     if (this.events.length > 40) this.events.shift();
 
     // ローカルモードでは、意味のあるイベントに即時反応するとデモとして分かりやすい
-    if (!this.live && ['select', 'toggle', 'smile', 'grab'].includes(ev.type)) {
+    if (!this.live && ['select', 'toggle', 'smile'].includes(ev.type)) {
       if (performance.now() - this._last < 2500) return;
       this._last = performance.now();
       const bank = LOCAL_LINES[ev.type];
@@ -80,13 +77,11 @@ export class AIBridge {
     if (!this.live) {
       const recent = this.events.slice(-6).map(e => e.type);
       if (!recent.length) return this.say(pick(LOCAL_LINES.idle)());
-      const n = { select: 0, toggle: 0, smile: 0, grab: 0 };
-      recent.forEach(t => { if (t in n) n[t]++; });
       return this.say(
         `直近の操作: ${recent.join(' → ')}。` +
         `いま Intensity ${uiState.intensity}、Zoom ${uiState.zoom}×、` +
         `選択中は ${uiState.selectedCard ?? 'なし'} です。` +
-        (this.live ? '' : '（ローカル応答モード。config.js の AI_ENDPOINT を設定すると Claude が答えます）')
+        '（ローカル応答モード。config.js の AI_ENDPOINT を設定すると Claude が答えます）'
       );
     }
 

@@ -20,8 +20,6 @@ const hudL    = $('#hudGestureL');
 const hudR    = $('#hudGestureR');
 const hudFace = $('#hudFace');
 const hudFps  = $('#hudFps');
-const vizBtn  = $('#vizBtn');
-const camBtn  = $('#camBtn');
 const centerStatus = $('#centerStatus');
 const curR    = $('#cursorR');
 const curL    = $('#cursorL');
@@ -41,44 +39,6 @@ const face  = new FaceState();
 
 let tracker = null;
 let lastOpenPalm = 0;
-
-/* ---------------- 表示モードの切り替え ---------------- */
-
-const VIZ_LABEL = { simple: '可視化: シンプル', detailed: '可視化: 詳細' };
-function cycleViz() {
-  const m = viz.toggleMode();
-  vizBtn.textContent = VIZ_LABEL[m];
-  ui.toast(m === 'detailed'
-    ? '詳細モード：顔メッシュ・番号・信頼度・bbox を表示'
-    : 'シンプルモード：骨格と輪郭のみ');
-}
-
-// カメラ映像の明るさ 3 段階（UI の可読性と「映っている感」のバランス調整用）
-const CAM_LEVELS = [
-  { name: '標準', cam: .55, scrim: .42 },
-  { name: '明るく', cam: .85, scrim: .22 },
-  { name: '暗く', cam: .22, scrim: .60 },
-];
-let camLevel = 0;
-function cycleCam() {
-  camLevel = (camLevel + 1) % CAM_LEVELS.length;
-  const l = CAM_LEVELS[camLevel];
-  document.documentElement.style.setProperty('--cam-opacity', l.cam);
-  document.documentElement.style.setProperty('--scrim', l.scrim);
-  camBtn.textContent = `映像: ${l.name}`;
-}
-
-// マウス / キーボード / ジェスチャーのどれでも切り替えられるようにしておく
-vizBtn.addEventListener('click', cycleViz);
-camBtn.addEventListener('click', cycleCam);
-ui.actions.viz = cycleViz;
-ui.actions.cam = cycleCam;
-addEventListener('keydown', e => {
-  if (e.repeat) return;
-  const k = e.key.toLowerCase();
-  if (k === 'v') cycleViz();
-  if (k === 'c') cycleCam();
-});
 
 /* ---------------- 起動 ---------------- */
 
@@ -164,7 +124,7 @@ function onResults(handRes, faceRes) {
   hudL.classList.toggle('hot', left.present);
   hudR.classList.toggle('hot', right.present);
   hudFace.textContent = face.present
-    ? `顔 ${face.smiling ? '🙂 笑顔' : face.mouthOpen ? '😮 口開' : '検出中'} / yaw ${(face.yaw * 57.3).toFixed(0)}°`
+    ? `顔 ${face.smiling ? '笑顔' : face.mouthOpen ? '口を開く' : '検出中'} / yaw ${(face.yaw * 57.3).toFixed(0)}°`
     : '顔 —';
   hudFace.classList.toggle('hot', face.present);
   hudFps.textContent = `${tracker.fps} fps`;
@@ -190,7 +150,6 @@ function paintCursor(el, h) {
 }
 
 // デバッグ用。DevTools から __lab.ui / __lab.right などを覗ける。
-//   __lab.viz.setMode('detailed')
 //   __lab.ui.handleHand({x:400,y:300,present:true,pinching:true,justPinched:true,
 //                        justReleased:false,gesture:'pinch'}, true)
 window.__lab = { get tracker() { return tracker; }, ui, ai, viz, left, right, face };

@@ -179,6 +179,6 @@ export function twoHandSpread(left, right) {
 }
 
 export const GESTURE_JP = {
-  none: '—', point: '☝️ 指差し', pinch: '🤏 ピンチ',
-  fist: '✊ グー', open: '✋ パー', peace: '✌️ ピース',
+  none: '—', point: '指差し', pinch: 'ピンチ',
+  fist: 'グー', open: 'パー', peace: 'ピース',
 };
