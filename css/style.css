@@ -132,11 +132,12 @@ body{
 /* ---------- カード ---------- */
 .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;flex:1;min-height:0;
   transform-origin:center center;transition:transform .12s linear}
-.card{display:flex;flex-direction:column;justify-content:center;gap:2px;padding:10px;
+.card{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:10px;
   border:1px solid var(--line);border-radius:11px;background:rgba(255,255,255,.05);
   transition:transform .16s cubic-bezier(.2,.9,.3,1.2),background .16s,border-color .16s;cursor:pointer}
-.card .emoji{font-size:19px;line-height:1}
-.card .name{font-size:11.5px;font-weight:600}
+.card .name{font-size:13px;font-weight:600;letter-spacing:.01em}
+.card .tag{font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.card.hover .tag,.card.active .tag{color:#cfe6f7}
 .card.hover{transform:translateY(-4px) scale(1.03);border-color:rgba(92,200,255,.7);
   background:rgba(92,200,255,.18)}
 .card.active{border-color:var(--ok);background:rgba(84,224,160,.2)}

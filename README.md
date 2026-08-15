@@ -1,6 +1,7 @@
 # Gesture UI Lab — MediaPipe × Claude
 
 ノートPCの Web カメラだけで、**手のジェスチャーと表情で Web UI を操作する**リアルタイム体験のプロトタイプです。
+カメラスルーの画を全画面に敷き、**センシング結果（ランドマーク）と UI を同じ画面に重ねて**表示します。
 推論はすべてブラウザ内（WebAssembly + WebGL）で完結し、**映像は一切サーバーに送信されません**。
 
 > **Step 1（今すぐ動く）** … API キー不要。GitHub Pages に置くだけ。
@@ -19,6 +20,31 @@
 | 🙌 両手の間隔 | Zoom ゲージ |
 | 🙂 笑顔 | 「いいね」を送る（52 ブレンドシェイプから判定） |
 | ↔️ 首の向き | 背景のパララックス |
+| `V` キー / 画面右上「可視化」 | 可視化をシンプル ⇄ 詳細で切替 |
+| `C` キー / 画面右上「映像」 | カメラ映像の明るさを3段階で切替 |
+
+---
+
+## 画面構成
+
+カメラの画を全画面に鏡像で敷き、その上に UI、さらにその上にランドマークを重ねています。
+**ランドマークは UI パネルより前面**に描くので、パネルに手をかざしても「認識できている」ことが常に見えます。
+
+```
+z=4  ランドマーク AR オーバーレイ  ← canvas（全画面・pointer-events:none）
+z=3  UI パネル                     ← 半透明ガラス。左右に寄せて中央に自分が映る
+z=2  暗幕                          ← UI を読みやすくする
+z=1  カメラスルー                  ← video（object-fit:cover + scaleX(-1)）
+z=0  装飾グリッド
+```
+
+可視化は 2 モードあります。
+
+| | シンプル | 詳細 |
+|---|---|---|
+| 手 | 骨格線 + 関節点 + ピンチ線 | ＋ 21点の番号、bbox、`RIGHT 0.97 · pinch · gap 0.21` |
+| 顔 | 輪郭・目・眉・唇 | ＋ 顔メッシュ（tesselation）、虹彩、yaw/pitch/roll、表情スコア |
+| 用途 | UI の文字が読みやすい。体験メイン | 「認識できている」ことを見せる技術デモ |
 
 ---
 
@@ -27,8 +53,9 @@
 ```
 index.html
 ├─ js/config.js      設定（MediaPipe のバージョン、しきい値、AI エンドポイント）
-├─ js/tracker.js     カメラ起動 ＋ MediaPipe 推論ループ ＋ オーバーレイ描画
+├─ js/tracker.js     カメラ起動 ＋ MediaPipe 推論ループ（描画は持たない）
 ├─ js/gestures.js    ランドマーク → ジェスチャー状態（純粋ロジック / DOM 非依存）
+├─ js/viz.js         全画面 AR オーバーレイ描画（シンプル / 詳細）
 ├─ js/ui.js          カーソルとピンチで駆動する UI ウィジェット
 ├─ js/ai-bridge.js   Claude 連携レイヤー（未接続ならローカル応答にフォールバック）
 └─ js/main.js        全体の配線
@@ -36,6 +63,25 @@ server/
 ├─ worker.js         Cloudflare Workers 用プロキシ（本番向け・推奨）
 └─ local-proxy.mjs   Node 単体のローカル検証用プロキシ
 ```
+
+### 座標マッピングについて（`js/viz.js`）
+
+video は CSS の `object-fit:cover` で全画面に敷いているので、**映像の一部は画面外にはみ出しています**。
+MediaPipe が返す正規化ランドマーク(0..1)をそのまま canvas 幅にかけると位置がズレます。
+`_fit()` で cover と同じ矩形を計算し直し、`_mk()` で鏡像反転も含めてマッピングしています。
+
+```js
+const s  = Math.max(screenW / videoW, screenH / videoH);   // cover
+const dw = videoW * s, dh = videoH * s;
+const ox = (screenW - dw) / 2, oy = (screenH - dh) / 2;
+screenX = ox + (1 - lm.x) * dw;   // ← 鏡像なので x を反転
+screenY = oy + lm.y * dh;
+```
+
+この計算は「画面上で実際に映像が描かれた位置」と突き合わせて誤差 0px を確認済みです。
+MediaPipe 付属の `DrawingUtils` は canvas 全体に等倍で描く前提なので、ここでは使わず自前で描いています
+（そのぶん番号ラベルや bbox を自由に足せます）。描画コストは実測で
+シンプル 0.12ms / 詳細 0.69ms per frame です。
 
 使用モデル（いずれも Google 公式ホスティング、初回のみ約 11MB ダウンロード）:
 
@@ -147,6 +193,10 @@ ANTHROPIC_API_KEY=sk-ant-... node server/local-proxy.mjs
 | `smileOn` / `browOn` / `jawOn` | 表情の発火しきい値 | 誤爆が減る（反応は鈍る） |
 | `yawGain` | 首の向き → 背景視差の量(px) | 動きが派手になる |
 
+カメラ映像の明るさと暗幕は CSS 変数 `--cam-opacity` / `--scrim` です。
+3段階のプリセットは `js/main.js` の `CAM_LEVELS` にあります。
+ランドマークの色や線の太さは `js/viz.js` の `C` を触ってください。
+
 カーソルの可動域は `js/gestures.js` の `EXP`（既定 1.9）です。
 腕を大きく動かさずに画面端へ届かせるため、カメラ中央付近を画面全体に拡大しています。
 
@@ -168,6 +218,7 @@ DevTools のコンソールから内部状態を覗けます。
 __lab.right.gesture        // 右手の現在のジェスチャー
 __lab.face.bs              // ブレンドシェイプ値（52個）
 __lab.tracker.fps
+__lab.viz.setMode('detailed')
 
 // 手を映さずに UI だけ試す
 __lab.ui.handleHand({ x: 400, y: 300, present: true, pinching: true,

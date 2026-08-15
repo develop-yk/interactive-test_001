@@ -6,12 +6,12 @@
  */
 
 const CARD_DATA = [
-  { emoji: '🎛️', name: 'Mixer',    tag: 'audio'  },
-  { emoji: '🗺️', name: 'Map',      tag: 'geo'    },
-  { emoji: '📊', name: 'Chart',    tag: 'data'   },
-  { emoji: '🧩', name: 'Modules',  tag: 'system' },
-  { emoji: '🎞️', name: 'Timeline', tag: 'video'  },
-  { emoji: '🛰️', name: 'Sensors',  tag: 'iot'    },
+  { name: 'Mixer',    tag: 'audio'  },
+  { name: 'Map',      tag: 'geo'    },
+  { name: 'Chart',    tag: 'data'   },
+  { name: 'Modules',  tag: 'system' },
+  { name: 'Timeline', tag: 'video'  },
+  { name: 'Sensors',  tag: 'iot'    },
 ];
 
 const BS_ROWS = [
@@ -63,8 +63,7 @@ export class UI {
       el.className = 'card';
       el.dataset.clickable = '';
       el.dataset.name = c.name;
-      el.innerHTML = `<div class="emoji">${c.emoji}</div><div class="name">${c.name}</div>
-                      <div class="muted" style="font-size:10px">${c.tag}</div>`;
+      el.innerHTML = `<div class="name">${c.name}</div><div class="tag">${c.tag}</div>`;
       this.cardsEl.appendChild(el);
     }
   }
