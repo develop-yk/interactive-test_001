@@ -126,6 +126,7 @@ body{
   box-shadow:0 10px 40px rgba(0,0,0,.35)}
 .panel-title{margin:0 0 12px;font-size:12px;font-weight:700;letter-spacing:.04em;color:#a7b6d0}
 .panel-note{margin:10px 0 0;font-size:11px;color:var(--muted)}
+.note-top{margin:-4px 0 4px}
 
 /* ---------- 3D ワイヤーフレーム ---------- */
 .panel-shape{gap:10px}
@@ -157,6 +158,16 @@ body{
   transform:scaleX(var(--dwell,0));transform-origin:left center;
   opacity:0;transition:opacity .18s;pointer-events:none}
 .shape-tab.dwelling::after{opacity:1}
+
+/* スライダー／トグルは形が細いので、進捗は広がるリングで示す
+   （下端バーだとノブや塗りと重なって読めない） */
+#slider,#toggle{transition:box-shadow .1s linear,border-color .18s,background .2s}
+#slider.dwelling,#toggle.dwelling{
+  box-shadow:0 0 0 calc(var(--dwell,0) * 7px) rgba(92,200,255,.40);
+  border-color:rgba(92,200,255,.9)}
+/* 滞留で掴んでいる間のスライダー */
+.slider.sticky{border-color:var(--ok);box-shadow:0 0 0 2px rgba(84,224,160,.45)}
+.slider.sticky .slider-knob{background:#dcfff2;transform:scale(1.25)}
 .shape-tab.dwelling{border-color:rgba(92,200,255,.85);background:rgba(92,200,255,.16)}
 .shape-tab:hover,.shape-tab.hover{border-color:rgba(92,200,255,.7);
   background:rgba(92,200,255,.15);color:#eaf8ff}

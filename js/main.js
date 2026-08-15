@@ -33,8 +33,8 @@ ui.shape = shape;
 // UI の初期値を 3D 側へ流し込む（スライダー 0.50 / Vertices ON）
 shape.setSpin(ui.sliderValue);
 shape.setVertices(true);
-// マウスでも切り替えられるようにしておく（検証・登壇時のフォールバック）
-ui.shapeTabs.forEach(t => t.addEventListener('click', () => ui._selectShape(t.dataset.shape)));
+// 形状ボタン / Spin speed / Vertices はマウス・キーボードでも操作できる
+ui.enableMouse();
 
 const left  = new HandState('Left');
 const right = new HandState('Right');

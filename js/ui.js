@@ -31,6 +31,9 @@ const AIM_TTL_MS = 400;
 /** 滞留選択（dwell）: data-dwell を持つ要素にこの時間カーソルを乗せ続けると決定 */
 const DWELL_MS = 2000;
 
+/** 滞留で掴んだスライダーを手放す距離（スライダー帯から縦にこれだけ離れる） */
+const STICKY_EXIT_PX = 90;
+
 export class UI {
   constructor(root) {
     this.root       = root;
@@ -96,6 +99,14 @@ export class UI {
     if (this._drag) {
       if (this._drag.type === 'slider') {
         this._setSliderFromX(h.x);
+        if (this._drag.sticky) {
+          // 滞留で掴んだ場合はピンチしていないので「離上」が来ない。
+          // スライダーの帯から縦に大きく外れる／ピンチする、のどちらかで終了する。
+          const r = this.slider.getBoundingClientRect();
+          const away = h.y < r.top - STICKY_EXIT_PX || h.y > r.bottom + STICKY_EXIT_PX;
+          if (away || h.justPinched || !h.present) this._endDrag();
+          return;
+        }
       } else {
         this.shape?.rotateBy(h.x - this._drag.x, h.y - this._drag.y);
         this._drag.x = h.x; this._drag.y = h.y;
@@ -123,8 +134,10 @@ export class UI {
     const target = (aimFresh ? (this._aim ?? hit) : hit);
 
     if (h.justPinched && target && target.isConnected) {
+      this._activate(target, h, false);
+      // ピンチで決めた要素の上に留まっている間は、滞留で二重に発火させない
       this._clearDwell();
-      this._activate(target, h);
+      if ('dwell' in (target.dataset ?? {})) { this._dwellEl = target; this._dwellFired = true; }
       return;
     }
 
@@ -132,9 +145,12 @@ export class UI {
     this._updateDwell(hit, h, now);
   }
 
-  /** ピンチ／滞留のどちらからも呼ばれる決定処理 */
-  _activate(target, h) {
-    if (target === this.slider)          this._beginSliderDrag(h.x);
+  /**
+   * ピンチ／滞留のどちらからも呼ばれる決定処理
+   * @param {boolean} viaDwell 滞留由来なら true（スライダーをスティッキーに掴む）
+   */
+  _activate(target, h, viaDwell) {
+    if (target === this.slider)          this._beginSliderDrag(h.x, viaDwell);
     else if (target === this.toggle)     this._toggleSwitch();
     else if (target === this.shapeStage) this._beginRotate(h);
     else if (target.dataset.shape)       this._selectShape(target.dataset.shape);
@@ -156,15 +172,17 @@ export class UI {
     }
     if (!el) return;
 
-    // ピンチ中はゲージを進めない（回転ドラッグ中などに勝手に決定しないように）
-    if (h.pinching) { this._dwellT0 = now; this._paintDwell(el, 0); return; }
+    // 一度決めたら、カーソルが離れるまで再発火しない
+    if (this._dwellFired) { this._paintDwell(el, 0); return; }
 
+    // ピンチしたままでも滞留は進む。回転ドラッグ中はそもそもこの関数に来ない
+    // （上のドラッグ分岐で return している）ので、誤爆の心配はない。
     const p = Math.min(1, (now - this._dwellT0) / DWELL_MS);
     this._paintDwell(el, p);
 
     if (p >= 1 && !this._dwellFired) {
       this._dwellFired = true;
-      this._activate(el, h);
+      this._activate(el, h, true);
       this._paintDwell(el, 0);
     }
   }
@@ -181,6 +199,56 @@ export class UI {
     }
     this._dwellEl = null;
     this._dwellFired = false;
+  }
+
+  /* ---------------- マウス操作（ジェスチャーと併用可） ---------------- */
+
+  /**
+   * 形状ボタン / Vertices トグル / Spin speed スライダーをマウスでも操作できるようにする。
+   * ジェスチャー側の _drag には触れないので、両者が競合することはない。
+   * 検証・登壇時のフォールバックとしても使う。
+   */
+  enableMouse() {
+    for (const t of this.shapeTabs) {
+      t.addEventListener('click', () => this._selectShape(t.dataset.shape));
+    }
+
+    this.toggle.addEventListener('click', () => this._toggleSwitch());
+    this.toggle.addEventListener('keydown', e => {
+      if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); this._toggleSwitch(); }
+    });
+
+    // スライダーはポインタキャプチャで掴む。枠の外へカーソルが出ても追従する
+    const sl = this.slider;
+    const move = e => this._setSliderFromX(e.clientX);
+    sl.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      sl.setPointerCapture?.(e.pointerId);
+      sl.classList.add('drag');
+      move(e);
+    });
+    sl.addEventListener('pointermove', e => {
+      if (sl.hasPointerCapture?.(e.pointerId)) move(e);
+    });
+    const release = e => {
+      if (sl.hasPointerCapture?.(e.pointerId)) sl.releasePointerCapture(e.pointerId);
+      sl.classList.remove('drag');
+    };
+    sl.addEventListener('pointerup', release);
+    sl.addEventListener('pointercancel', release);
+
+    // 矢印キーでも動かせるようにしておく（細かい値合わせに便利）
+    sl.addEventListener('keydown', e => {
+      const step = e.shiftKey ? 0.1 : 0.02;
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowDown')  { e.preventDefault(); this.setSlider(this.sliderValue - step); }
+      if (e.key === 'ArrowRight' || e.key === 'ArrowUp')   { e.preventDefault(); this.setSlider(this.sliderValue + step); }
+    });
+  }
+
+  /** 値を直接指定してスライダーを更新する（キーボード / 外部から） */
+  setSlider(v) {
+    const r = this.slider.getBoundingClientRect();
+    this._setSliderFromX(r.left + Math.min(1, Math.max(0, v)) * r.width);
   }
 
   /** 押したことが目で分かるように一瞬光らせる */
@@ -217,7 +285,7 @@ export class UI {
   _endDrag() {
     if (!this._drag) return;
     if (this._drag.type === 'slider') {
-      this.slider.classList.remove('drag');
+      this.slider.classList.remove('drag', 'sticky');
     } else {
       this.shape?.endDrag();
       this.shapeStage.classList.remove('drag');
@@ -226,9 +294,11 @@ export class UI {
     this._drag = null;
   }
 
-  _beginSliderDrag(x) {
-    this._drag = { type: 'slider' };
+  _beginSliderDrag(x, sticky = false) {
+    this._drag = { type: 'slider', sticky };
     this.slider.classList.add('drag');
+    this.slider.classList.toggle('sticky', !!sticky);
+    if (sticky) this.toast('Slider grabbed — move sideways, then move away to finish');
     this._setSliderFromX(x);
   }
 
@@ -247,6 +317,7 @@ export class UI {
     this.slider.querySelector('.slider-fill').style.width = `${v * 100}%`;
     this.slider.querySelector('.slider-knob').style.left  = `${v * 100}%`;
     this.sliderVal.textContent = v.toFixed(2);
+    this.slider.setAttribute('aria-valuenow', v.toFixed(2));
     this.shape?.setSpin(v);          // 3D の自動回転スピードへ
   }
 

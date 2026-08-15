@@ -23,6 +23,7 @@
     <ul class="gate-list">
       <li><span class="k">Index finger</span>Move the cursor</li>
       <li><span class="k">Pinch</span>Click and drag</li>
+      <li><span class="k">Hold 2 seconds</span>Select without pinching</li>
       <li><span class="k">Pinch on object</span>Rotate the wireframe</li>
       <li><span class="k">Open palm</span>Reset the object</li>
       <li><span class="k">Two hands</span>Zoom by hand span</li>
@@ -63,10 +64,13 @@
     <div class="col">
       <div class="panel panel-controls">
         <h2 class="panel-title">Pinch and Drag</h2>
+        <p class="panel-note note-top">Pinch, hold the cursor for 2 seconds, or use the mouse</p>
 
         <div class="ctl">
           <span class="ctl-label">Spin speed</span>
-          <div class="slider" id="slider" data-value="0.5">
+          <div class="slider" id="slider" data-clickable data-dwell data-value="0.5"
+               role="slider" tabindex="0" aria-label="Spin speed"
+               aria-valuemin="0" aria-valuemax="1" aria-valuenow="0.5">
             <div class="slider-fill"></div>
             <div class="slider-knob"></div>
           </div>
@@ -75,7 +79,8 @@
 
         <div class="ctl">
           <span class="ctl-label">Vertices</span>
-          <div class="toggle on" id="toggle" role="switch" aria-checked="true"><i></i></div>
+          <div class="toggle on" id="toggle" data-clickable data-dwell tabindex="0"
+               role="switch" aria-label="Vertices" aria-checked="true"><i></i></div>
           <span></span>
         </div>
 
