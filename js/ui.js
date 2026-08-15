@@ -5,7 +5,7 @@
  * hover / click / drag を自前でディスパッチします（マウスイベントは使わない）。
  *
  * ドラッグは 2 種類:
- *   slider … Intensity スライダー
+ *   slider … Spin speed スライダー
  *   rotate … ワイヤーフレーム 3D オブジェクトの回転
  */
 import { TUNING } from './config.js';
@@ -27,6 +27,9 @@ const HIT = '[data-clickable], #slider, #toggle, [data-rotatable]';
  * 指を閉じ始める前に hover していた要素を latch しておき、押下時にそれを使う。
  */
 const AIM_TTL_MS = 400;
+
+/** 滞留選択（dwell）: data-dwell を持つ要素にこの時間カーソルを乗せ続けると決定 */
+const DWELL_MS = 2000;
 
 export class UI {
   constructor(root) {
@@ -58,6 +61,9 @@ export class UI {
     this._hover = null;
     this._aim  = null;         // 手が開いていたときに狙っていた要素
     this._aimT = -1e9;
+    this._dwellEl = null;      // 滞留中の要素
+    this._dwellT0 = 0;
+    this._dwellFired = false;
     this._bsBars = {};
     this._toastT = 0;
 
@@ -98,7 +104,7 @@ export class UI {
       return;
     }
 
-    if (!h.present) { this._setHover(null); return; }
+    if (!h.present) { this._setHover(null); this._clearDwell(); return; }
 
     const hit = this._elementAt(h.x, h.y, HIT);
     this._setHover(hit);
@@ -107,20 +113,74 @@ export class UI {
     // 判定すると、狙いを外したり隣のボタンを踏んだりする。
     // そこで「手が開いていた時点で狙っていた要素」を latch し、押下時にそれを使う。
     // 手を離して別の場所へ動かせば latch も追従するので、古い対象が残ることはない。
-    const now = performance.now();
+    //
+    // 時刻はフレーム側から受け取る（h.t）。描画が詰まっても推論フレームの時刻で
+    // 数えるので、滞留時間が実機の負荷で伸び縮みしない。
+    const now = h.t ?? performance.now();
     if (h.pinchAmount > TUNING.pinchOff) { this._aim = hit; this._aimT = now; }
 
     const aimFresh = now - this._aimT < AIM_TTL_MS;
     const target = (aimFresh ? (this._aim ?? hit) : hit);
 
     if (h.justPinched && target && target.isConnected) {
-      if (target === this.slider)          this._beginSliderDrag(h.x);
-      else if (target === this.toggle)     this._toggleSwitch();
-      else if (target === this.shapeStage) this._beginRotate(h);
-      else if (target.dataset.shape)       this._selectShape(target.dataset.shape);
-      else if (target.dataset.action)      this.actions[target.dataset.action]?.(target);
-      this._flash(target);
+      this._clearDwell();
+      this._activate(target, h);
+      return;
     }
+
+    // ピンチが苦手でも操作できるように、滞留でも決定できるようにしておく
+    this._updateDwell(hit, h, now);
+  }
+
+  /** ピンチ／滞留のどちらからも呼ばれる決定処理 */
+  _activate(target, h) {
+    if (target === this.slider)          this._beginSliderDrag(h.x);
+    else if (target === this.toggle)     this._toggleSwitch();
+    else if (target === this.shapeStage) this._beginRotate(h);
+    else if (target.dataset.shape)       this._selectShape(target.dataset.shape);
+    else if (target.dataset.action)      this.actions[target.dataset.action]?.(target);
+    this._flash(target);
+  }
+
+  /* ---------------- 滞留選択（dwell） ---------------- */
+
+  _updateDwell(hit, h, now) {
+    // 対象は data-dwell を持つ要素だけ。すでに選ばれているものは進めない
+    const el = (hit && 'dwell' in hit.dataset && !hit.classList.contains('is-on')) ? hit : null;
+
+    if (el !== this._dwellEl) {
+      this._clearDwell();
+      this._dwellEl = el;
+      this._dwellT0 = now;
+      this._dwellFired = false;
+    }
+    if (!el) return;
+
+    // ピンチ中はゲージを進めない（回転ドラッグ中などに勝手に決定しないように）
+    if (h.pinching) { this._dwellT0 = now; this._paintDwell(el, 0); return; }
+
+    const p = Math.min(1, (now - this._dwellT0) / DWELL_MS);
+    this._paintDwell(el, p);
+
+    if (p >= 1 && !this._dwellFired) {
+      this._dwellFired = true;
+      this._activate(el, h);
+      this._paintDwell(el, 0);
+    }
+  }
+
+  _paintDwell(el, p) {
+    el.style.setProperty('--dwell', p.toFixed(3));
+    el.classList.toggle('dwelling', p > 0.02);
+  }
+
+  _clearDwell() {
+    if (this._dwellEl) {
+      this._dwellEl.style.removeProperty('--dwell');
+      this._dwellEl.classList.remove('dwelling');
+    }
+    this._dwellEl = null;
+    this._dwellFired = false;
   }
 
   /** 押したことが目で分かるように一瞬光らせる */
@@ -187,15 +247,15 @@ export class UI {
     this.slider.querySelector('.slider-fill').style.width = `${v * 100}%`;
     this.slider.querySelector('.slider-knob').style.left  = `${v * 100}%`;
     this.sliderVal.textContent = v.toFixed(2);
-    document.documentElement.style.setProperty('--accent-strength', v.toFixed(2));
+    this.shape?.setSpin(v);          // 3D の自動回転スピードへ
   }
 
   _toggleSwitch() {
     const on = !this.toggle.classList.contains('on');
     this.toggle.classList.toggle('on', on);
     this.toggle.setAttribute('aria-checked', String(on));
-    document.body.classList.toggle('wire', on);
-    this.toast(on ? 'Wireframe ON' : 'Wireframe OFF');
+    this.shape?.setVertices(on);     // 3D の頂点表示へ
+    this.toast(on ? 'Vertices ON' : 'Vertices OFF');
     this.onEvent({ type: 'toggle', value: on });
   }
 
@@ -297,8 +357,8 @@ export class UI {
     return {
       shape: this.shapeKey,
       rotation: this.shape?.angles() ?? null,
-      intensity: +this.sliderValue.toFixed(2),
-      wireframe: this.toggle.classList.contains('on'),
+      spin: +this.sliderValue.toFixed(2),
+      vertices: this.toggle.classList.contains('on'),
       zoom: +this.zoom.toFixed(2),
       likes: this.likes,
     };

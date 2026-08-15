@@ -54,6 +54,7 @@ export class HandState {
     this.x = 0; this.y = 0;      // 画面座標(px)
     this.nx = 0; this.ny = 0;    // 正規化(0-1, 画面基準・ミラー済み)
     this.pinchAmount = 1;
+    this.t = 0;                  // このフレームの時刻(ms)。UI 側の滞留判定で使う
     this.fx = new OneEuro(TUNING.smoothMinCut, TUNING.smoothBeta);
     this.fy = new OneEuro(TUNING.smoothMinCut, TUNING.smoothBeta);
     this._lostFrames = 0;
@@ -62,6 +63,7 @@ export class HandState {
   /** landmarks が null ならロスト扱い（数フレーム猶予を持たせてチラつきを防ぐ） */
   update(landmarks, tMs, vw, vh) {
     this.justPinched = this.justReleased = false;
+    this.t = tMs;
 
     if (!landmarks) {
       if (++this._lostFrames > 6) {

@@ -147,9 +147,17 @@ body{
 
 /* ジェスチャーカーソルで狙うので、ボタンは大きめに取る */
 .shape-tabs{display:grid;gap:10px}
-.shape-tab{min-height:60px;padding:18px 18px;border-radius:12px;cursor:pointer;text-align:left;
+.shape-tab{position:relative;overflow:hidden;
+  min-height:60px;padding:18px 18px;border-radius:12px;cursor:pointer;text-align:left;
   border:1px solid var(--line);background:rgba(255,255,255,.04);color:#c6cede;
   font-family:inherit;font-size:15px;letter-spacing:.01em;transition:.15s}
+/* 滞留選択のゲージ。--dwell(0..1) を JS が毎フレーム更新する */
+.shape-tab::after{content:'';position:absolute;left:0;bottom:0;height:5px;width:100%;
+  background:linear-gradient(90deg,var(--accent),#9ae7ff);
+  transform:scaleX(var(--dwell,0));transform-origin:left center;
+  opacity:0;transition:opacity .18s;pointer-events:none}
+.shape-tab.dwelling::after{opacity:1}
+.shape-tab.dwelling{border-color:rgba(92,200,255,.85);background:rgba(92,200,255,.16)}
 .shape-tab:hover,.shape-tab.hover{border-color:rgba(92,200,255,.7);
   background:rgba(92,200,255,.15);color:#eaf8ff}
 .shape-tab.is-on{border-color:rgba(84,224,160,.65);background:rgba(84,224,160,.16);

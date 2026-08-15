@@ -82,7 +82,7 @@ export class AIBridge {
       if (!recent.length) return this.say(pick(LOCAL_LINES.idle)());
       return this.say(
         `Recent actions: ${recent.join(' > ')}. ` +
-        `Intensity is ${uiState.intensity}, Zoom ${uiState.zoom}x, ` +
+        `Spin speed is ${uiState.spin}, Zoom ${uiState.zoom}x, ` +
         `the object is a ${uiState.shape ?? 'none'}. ` +
         '(Local mode — set AI_ENDPOINT in config.js and Claude will answer instead.)'
       );

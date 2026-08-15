@@ -30,6 +30,9 @@ const viz = new Viz($('#overlay'), $('#video'));
 // ワイヤーフレーム 3D。自前の rAF ループで回るので、カメラが止まっていても動く
 const shape = new Shape3D($('#shapeCanvas'));
 ui.shape = shape;
+// UI の初期値を 3D 側へ流し込む（スライダー 0.50 / Vertices ON）
+shape.setSpin(ui.sliderValue);
+shape.setVertices(true);
 // マウスでも切り替えられるようにしておく（検証・登壇時のフォールバック）
 ui.shapeTabs.forEach(t => t.addEventListener('click', () => ui._selectShape(t.dataset.shape)));
 

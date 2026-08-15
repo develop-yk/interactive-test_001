@@ -75,6 +75,8 @@ export class Shape3D {
     this.key   = 'prism';
     this.geo   = SHAPES.prism.build();
     this.scale = 1;
+    this.spin  = 0.007;        // 放置時の自動回転量(rad/frame)。Spin speed スライダーが変える
+    this.showVertices = true;  // 頂点の点を描くか。Vertices トグルが変える
 
     this.rotX = -0.32; this.rotY = 0.62;
     this.velX = 0;     this.velY = 0;
@@ -95,6 +97,14 @@ export class Shape3D {
     this._pop = 1;                       // 切り替え時の軽い演出
     return true;
   }
+
+  /** Spin speed スライダー(0..1) → 自動回転量。0 で完全停止 */
+  setSpin(v01) {
+    this.spin = Math.max(0, Math.min(1, v01)) * 0.014;
+  }
+
+  /** Vertices トグル → 頂点の点を描くか */
+  setVertices(on) { this.showVertices = !!on; }
 
   /** 両手ズーム(0.6〜2.4)を控えめなスケールに写す */
   setZoom(z) {
@@ -147,7 +157,7 @@ export class Shape3D {
       this.velX *= 0.93; this.velY *= 0.93;
       if (Math.abs(this.velY) < 1e-4) this.velY = 0;
       if (Math.abs(this.velX) < 1e-4) this.velX = 0;
-      if (!this.velX && !this.velY) this.rotY += 0.0035;   // 放置時のゆっくり自転
+      if (!this.velX && !this.velY) this.rotY += this.spin;   // 放置時の自転
     }
     if (this._pop) this._pop = Math.max(0, this._pop - 0.06);
     this._draw();
@@ -197,12 +207,14 @@ export class Shape3D {
     ctx.shadowBlur = 0;
 
     // 頂点
-    for (const p of P) {
-      const t = Math.max(0, Math.min(1, (p.z + 1.3) / 2.6));
-      ctx.fillStyle = `rgba(255,255,255,${(0.25 + t * 0.7).toFixed(3)})`;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, 1.3 + t * 1.7, 0, 6.284);
-      ctx.fill();
+    if (this.showVertices) {
+      for (const p of P) {
+        const t = Math.max(0, Math.min(1, (p.z + 1.3) / 2.6));
+        ctx.fillStyle = `rgba(255,255,255,${(0.25 + t * 0.7).toFixed(3)})`;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 1.3 + t * 1.7, 0, 6.284);
+        ctx.fill();
+      }
     }
   }
 

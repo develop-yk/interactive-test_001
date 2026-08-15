@@ -65,7 +65,7 @@
         <h2 class="panel-title">Pinch and Drag</h2>
 
         <div class="ctl">
-          <span class="ctl-label">Intensity</span>
+          <span class="ctl-label">Spin speed</span>
           <div class="slider" id="slider" data-value="0.5">
             <div class="slider-fill"></div>
             <div class="slider-knob"></div>
@@ -74,8 +74,8 @@
         </div>
 
         <div class="ctl">
-          <span class="ctl-label">Wireframe</span>
-          <div class="toggle" id="toggle" role="switch" aria-checked="false"><i></i></div>
+          <span class="ctl-label">Vertices</span>
+          <div class="toggle on" id="toggle" role="switch" aria-checked="true"><i></i></div>
           <span></span>
         </div>
 
@@ -109,10 +109,11 @@
           <span class="shape-hint" id="shapeHint">Pinch and move to rotate</span>
         </div>
         <div class="shape-tabs">
-          <button class="shape-tab is-on" data-clickable data-shape="prism">Rectangular prism</button>
-          <button class="shape-tab"       data-clickable data-shape="pyramid">Triangular pyramid</button>
-          <button class="shape-tab"       data-clickable data-shape="dodeca">Regular dodecahedron</button>
+          <button class="shape-tab is-on" data-clickable data-dwell data-shape="prism">Rectangular prism</button>
+          <button class="shape-tab"       data-clickable data-dwell data-shape="pyramid">Triangular pyramid</button>
+          <button class="shape-tab"       data-clickable data-dwell data-shape="dodeca">Regular dodecahedron</button>
         </div>
+        <p class="panel-note">Pinch to select, or just hold the cursor for 2 seconds</p>
       </div>
     </div>
 
